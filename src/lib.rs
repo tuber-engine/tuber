@@ -51,17 +51,21 @@ impl Engine {
             .with_title(&self.application_title)
             .build(&event_loop)?;
 
-        event_loop.run(move |event, _, control_flow| match event {
-            Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                ..
-            } => *control_flow = ControlFlow::Exit,
-            Event::RedrawEventsCleared => {
-                if let Some(state) = game_state_stack.current_state() {
-                    state.update();
+        event_loop.run(move |event, _, control_flow| {
+            *control_flow = winit::event_loop::ControlFlow::Poll;
+
+            match event {
+                Event::WindowEvent {
+                    event: WindowEvent::CloseRequested,
+                    ..
+                } => *control_flow = ControlFlow::Exit,
+                Event::RedrawEventsCleared => {
+                    if let Some(state) = game_state_stack.current_state() {
+                        state.update();
+                    }
                 }
+                _ => {}
             }
-            _ => *control_flow = ControlFlow::Poll,
         });
     }
 }
