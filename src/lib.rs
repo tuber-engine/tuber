@@ -21,47 +21,48 @@
 * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
 */
-use winit::event_loop::EventLoop;
-use winit::window::{Window, WindowBuilder};
+use winit::event::{Event, WindowEvent};
+use winit::event_loop::{ControlFlow, EventLoop};
+use winit::window::WindowBuilder;
 
 pub struct Engine {
-    _application_title: String,
-    _event_loop: EventLoop<()>,
-    _window: Window,
-    game_state_stack: GameStateStack,
+    application_title: String,
 }
 impl Engine {
-    pub fn new(application_title: &str) -> Result<Engine, winit::error::OsError> {
-        let event_loop = EventLoop::new();
-        let window = WindowBuilder::new()
-            .with_title(application_title)
-            .build(&event_loop)?;
-        Ok(Engine {
-            _application_title: application_title.into(),
-            _event_loop: event_loop,
-            _window: window,
-            game_state_stack: GameStateStack::new(),
-        })
+    pub fn new(application_title: &str) -> Engine {
+        Engine {
+            application_title: application_title.into(),
+        }
     }
 
-    pub fn ignite(&mut self, initial_game_state: Box<dyn GameState>) {
-        self.game_state_stack.push(initial_game_state);
-        self.game_state_stack
+    pub fn ignite(
+        &mut self,
+        initial_game_state: Box<dyn GameState>,
+    ) -> Result<(), winit::error::OsError> {
+        let mut game_state_stack = GameStateStack::new();
+        game_state_stack.push(initial_game_state);
+        game_state_stack
             .current_state()
             .expect("No game state on stack")
             .initialize();
 
-        self.run_main_loop();
-    }
+        let event_loop = EventLoop::new();
+        let _window = WindowBuilder::new()
+            .with_title(&self.application_title)
+            .build(&event_loop)?;
 
-    fn run_main_loop(&mut self) {
-        'main_loop: loop {
-            if let Some(state) = self.game_state_stack.current_state() {
-                state.update();
-            } else {
-                break 'main_loop;
+        event_loop.run(move |event, _, control_flow| match event {
+            Event::WindowEvent {
+                event: WindowEvent::CloseRequested,
+                ..
+            } => *control_flow = ControlFlow::Exit,
+            Event::RedrawEventsCleared => {
+                if let Some(state) = game_state_stack.current_state() {
+                    state.update();
+                }
             }
-        }
+            _ => *control_flow = ControlFlow::Poll,
+        });
     }
 }
 
