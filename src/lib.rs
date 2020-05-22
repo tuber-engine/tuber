@@ -25,8 +25,6 @@ use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 
-pub mod ecs;
-
 pub struct Engine {
     application_title: String,
 }
