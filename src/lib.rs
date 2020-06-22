@@ -21,13 +21,22 @@
 * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
 */
+use crate::graphics::Renderer;
+use tecs::{
+    core::Ecs,
+    query::Queryable,
+    system::{Runnable, System},
+};
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 
+mod graphics;
+
 pub struct Engine {
     application_title: String,
 }
+
 impl Engine {
     pub fn new(application_title: &str) -> Engine {
         Engine {
@@ -37,19 +46,19 @@ impl Engine {
 
     pub fn ignite(
         &mut self,
-        initial_game_state: Box<dyn GameState>,
+        mut initial_state: Box<dyn State>,
     ) -> Result<(), winit::error::OsError> {
-        let mut game_state_stack = GameStateStack::new();
-        game_state_stack.push(initial_game_state);
-        game_state_stack
-            .current_state()
-            .expect("No game state on stack")
-            .initialize();
-
         let event_loop = EventLoop::new();
-        let _window = WindowBuilder::new()
+        let window = WindowBuilder::new()
             .with_title(&self.application_title)
             .build(&event_loop)?;
+
+        let mut renderer = futures::executor::block_on(Renderer::new(window));
+
+        let mut ecs = Ecs::new();
+        let mut system_schedule = SystemSchedule::new();
+
+        initial_state.initialize(&mut ecs, &mut system_schedule);
 
         event_loop.run(move |event, _, control_flow| {
             *control_flow = winit::event_loop::ControlFlow::Poll;
@@ -60,9 +69,11 @@ impl Engine {
                     ..
                 } => *control_flow = ControlFlow::Exit,
                 Event::RedrawEventsCleared => {
-                    if let Some(state) = game_state_stack.current_state() {
-                        state.update();
-                    }
+                    // Update game
+                    system_schedule.run(&mut ecs);
+
+                    // Execute renderer
+                    renderer.render(&ecs);
                 }
                 _ => {}
             }
@@ -70,31 +81,26 @@ impl Engine {
     }
 }
 
-pub struct GameStateStack {
-    game_states: Vec<Box<dyn GameState>>,
+pub trait State {
+    fn initialize(&mut self, ecs: &mut Ecs, system_schedule: &mut SystemSchedule);
 }
 
-impl GameStateStack {
-    pub fn new() -> GameStateStack {
-        GameStateStack {
-            game_states: vec![],
+pub struct SystemSchedule {
+    systems: Vec<Box<dyn Runnable>>,
+}
+
+impl SystemSchedule {
+    pub fn new() -> Self {
+        Self { systems: vec![] }
+    }
+
+    pub fn add_system<Q: 'static + for<'a> Queryable<'a>>(&mut self, system: System<'static, Q>) {
+        self.systems.push(Box::new(system))
+    }
+
+    pub fn run(&mut self, ecs: &mut Ecs) {
+        for system in &mut self.systems {
+            system.run(ecs);
         }
     }
-
-    pub fn push(&mut self, state: Box<dyn GameState>) {
-        self.game_states.push(state);
-    }
-
-    pub fn pop(&mut self) {
-        self.game_states.pop();
-    }
-
-    pub fn current_state(&mut self) -> Option<&mut Box<dyn GameState>> {
-        self.game_states.last_mut()
-    }
-}
-
-pub trait GameState {
-    fn initialize(&mut self);
-    fn update(&mut self);
 }
