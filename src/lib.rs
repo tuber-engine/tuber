@@ -21,7 +21,7 @@
 * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE.
 */
-use crate::graphics::Renderer;
+use crate::platform::wgpu::WGPURenderer;
 use tecs::{
     core::Ecs,
     query::Queryable,
@@ -31,7 +31,10 @@ use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 
+use graphics::SceneRenderer;
+
 mod graphics;
+mod platform;
 
 pub struct Engine {
     application_title: String,
@@ -44,7 +47,7 @@ impl Engine {
         }
     }
 
-    pub fn ignite(
+    pub async fn ignite(
         &mut self,
         mut initial_state: Box<dyn State>,
     ) -> Result<(), winit::error::OsError> {
@@ -52,8 +55,7 @@ impl Engine {
         let window = WindowBuilder::new()
             .with_title(&self.application_title)
             .build(&event_loop)?;
-
-        let mut renderer = futures::executor::block_on(Renderer::new(window));
+        let mut renderer = WGPURenderer::new(&window).await;
 
         let mut ecs = Ecs::new();
         let mut system_schedule = SystemSchedule::new();
@@ -68,12 +70,12 @@ impl Engine {
                     event: WindowEvent::CloseRequested,
                     ..
                 } => *control_flow = ControlFlow::Exit,
-                Event::RedrawEventsCleared => {
-                    // Update game
+                Event::RedrawRequested(_) => {
                     system_schedule.run(&mut ecs);
-
-                    // Execute renderer
-                    renderer.render(&ecs);
+                    renderer.render()
+                }
+                Event::MainEventsCleared => {
+                    window.request_redraw();
                 }
                 _ => {}
             }
@@ -103,4 +105,10 @@ impl SystemSchedule {
             system.run(ecs);
         }
     }
+}
+
+#[derive(Debug)]
+pub struct Position {
+    pub x: f32,
+    pub y: f32,
 }
