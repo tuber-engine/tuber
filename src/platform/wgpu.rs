@@ -10,6 +10,27 @@ use wgpu::{BufferUsage, PresentMode, TextureFormat};
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
 
+const VERTICES: &[Vertex] = &[
+    Vertex {
+        position: [0.0, 0.0, 0.0],
+        color: [1.0, 0.0, 0.0],
+    },
+    Vertex {
+        position: [1.0, 0.0, 0.0],
+        color: [0.0, 1.0, 0.0],
+    },
+    Vertex {
+        position: [0.0, 1.0, 0.0],
+        color: [0.0, 0.0, 1.0],
+    },
+    Vertex {
+        position: [1.0, 1.0, 0.0],
+        color: [0.0, 0.0, 0.0],
+    },
+];
+
+const INDICES: &[u16] = &[0, 1, 2, 2, 1, 3];
+
 pub struct WGPURenderer {
     surface: wgpu::Surface,
     adapter: wgpu::Adapter,
@@ -18,6 +39,10 @@ pub struct WGPURenderer {
     sc_desc: wgpu::SwapChainDescriptor,
     swap_chain: wgpu::SwapChain,
     render_pipeline: wgpu::RenderPipeline,
+    vertex_buffer: wgpu::Buffer,
+    vertex_count: u32,
+    index_buffer: wgpu::Buffer,
+    index_count: u32,
     size: PhysicalSize<u32>,
 }
 impl WGPURenderer {
@@ -53,15 +78,15 @@ impl WGPURenderer {
 
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
 
-        let vs_src = include_str!("../shaders/triangle.vert");
-        let fs_src = include_str!("../shaders/triangle.frag");
+        let vs_src = include_str!("../shaders/quad.vert");
+        let fs_src = include_str!("../shaders/quad.frag");
 
         let mut compiler = shaderc::Compiler::new().unwrap();
         let vs_spirv = compiler
             .compile_into_spirv(
                 vs_src,
                 shaderc::ShaderKind::Vertex,
-                "triangle.vert",
+                "quad.vert",
                 "main",
                 None,
             )
@@ -70,7 +95,7 @@ impl WGPURenderer {
             .compile_into_spirv(
                 fs_src,
                 shaderc::ShaderKind::Fragment,
-                "triangle.frag",
+                "quad.frag",
                 "main",
                 None,
             )
@@ -114,12 +139,19 @@ impl WGPURenderer {
             depth_stencil_state: None,
             vertex_state: wgpu::VertexStateDescriptor {
                 index_format: wgpu::IndexFormat::Uint16,
-                vertex_buffers: &[],
+                vertex_buffers: &[Vertex::desc()],
             },
             sample_count: 1,
             sample_mask: !0,
             alpha_to_coverage_enabled: false,
         });
+
+        let vertex_buffer = device
+            .create_buffer_with_data(bytemuck::cast_slice(VERTICES), wgpu::BufferUsage::VERTEX);
+        let vertex_count = VERTICES.len() as u32;
+        let index_buffer =
+            device.create_buffer_with_data(bytemuck::cast_slice(INDICES), wgpu::BufferUsage::INDEX);
+        let index_count = INDICES.len() as u32;
 
         Self {
             surface,
@@ -129,6 +161,10 @@ impl WGPURenderer {
             sc_desc,
             swap_chain,
             render_pipeline,
+            vertex_buffer,
+            vertex_count,
+            index_buffer,
+            index_count,
             size,
         }
     }
@@ -157,7 +193,9 @@ impl WGPURenderer {
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.draw(0..3, 0..1);
+            render_pass.set_vertex_buffer(0, &self.vertex_buffer, 0, 0);
+            render_pass.set_index_buffer(&self.index_buffer, 0, 0);
+            render_pass.draw_indexed(0..self.index_count, 0, 0..1);
         }
 
         self.queue.submit(&[encoder.finish()]);
