@@ -122,7 +122,7 @@ impl WGPURenderer {
             alpha_to_coverage_enabled: false,
         });
 
-        let mut quad_buffer = QuadBuffer::new(&device);
+        let mut quad_buffer = QuadBuffer::new(1000, &device);
         quad_buffer.add_quad(
             Quad {
                 top_left: Vertex {
@@ -267,30 +267,41 @@ unsafe impl bytemuck::Zeroable for Quad {}
 struct QuadBuffer {
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
-    quad_count: usize,
+    size: u64,
+    quad_count: u64,
 }
 
 impl QuadBuffer {
-    pub fn new(device: &wgpu::Device) -> Self {
+    const INDICES_PER_QUAD: u64 = 6;
+
+    /// Creates a new QuadBuffer, with the given `size` which is the maximum
+    /// number of quads to be contained in the buffer
+    pub fn new(size: u64, device: &wgpu::Device) -> Self {
         let vertex_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("quad buffer"),
-            size: 4000,
+            size: size * std::mem::size_of::<Quad>() as u64,
             usage: wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_DST,
         });
         let index_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("quad index buffer"),
-            size: 1000,
+            size: size * QuadBuffer::INDICES_PER_QUAD * std::mem::size_of::<u16>() as u64,
             usage: wgpu::BufferUsage::INDEX | wgpu::BufferUsage::COPY_DST,
         });
 
         QuadBuffer {
             vertex_buffer,
             index_buffer,
+            size,
             quad_count: 0,
         }
     }
 
+    /// Adds a quad to the buffer
+    ///
+    /// # Panics
+    /// This will panic if the size of the buffer is exceeded
     pub fn add_quad(&mut self, quad: Quad, device: &wgpu::Device, queue: &wgpu::Queue) {
+        assert!(self.quad_count < self.size, "QuadBuffer size exceeded");
         let mut command_encoder = device.create_command_encoder(&CommandEncoderDescriptor {
             label: Some("Quad buffer command encoder"),
         });
@@ -323,7 +334,9 @@ impl QuadBuffer {
             &indices,
             0,
             &self.index_buffer,
-            self.quad_count as u64 * 6 * std::mem::size_of::<u16>() as u64,
+            self.quad_count as u64
+                * QuadBuffer::INDICES_PER_QUAD
+                * std::mem::size_of::<u16>() as u64,
             6 * std::mem::size_of::<u16>() as u64,
         );
 
@@ -339,11 +352,11 @@ impl QuadBuffer {
         &self.index_buffer
     }
 
-    pub fn quad_count(&self) -> usize {
+    pub fn quad_count(&self) -> u64 {
         self.quad_count
     }
 
-    pub fn index_count(&self) -> usize {
-        self.quad_count * 6
+    pub fn index_count(&self) -> u64 {
+        self.quad_count * QuadBuffer::INDICES_PER_QUAD
     }
 }
