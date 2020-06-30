@@ -6,7 +6,7 @@ use shaderc;
 use tecs::core::Ecs;
 use tecs::query::Imm;
 use tecs::query::Queryable;
-use wgpu::{BufferUsage, PresentMode, TextureFormat};
+use wgpu::{BufferDescriptor, BufferUsage, CommandEncoderDescriptor, PresentMode, TextureFormat};
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
 
@@ -18,10 +18,6 @@ pub struct WGPURenderer {
     sc_desc: wgpu::SwapChainDescriptor,
     swap_chain: wgpu::SwapChain,
     render_pipeline: wgpu::RenderPipeline,
-    vertex_buffer: wgpu::Buffer,
-    vertex_count: u32,
-    index_buffer: wgpu::Buffer,
-    index_count: u32,
     quad_buffer: QuadBuffer,
     size: PhysicalSize<u32>,
 }
@@ -126,54 +122,51 @@ impl WGPURenderer {
             alpha_to_coverage_enabled: false,
         });
 
-        let mut quad_buffer = QuadBuffer::new();
-        quad_buffer.add_quad(Quad {
-            top_left: Vertex {
-                position: [0.0, 0.0, 0.0],
-                color: [1.0, 0.0, 0.0],
+        let mut quad_buffer = QuadBuffer::new(&device);
+        quad_buffer.add_quad(
+            Quad {
+                top_left: Vertex {
+                    position: [0.0, 0.0, 0.0],
+                    color: [1.0, 0.0, 0.0],
+                },
+                bottom_left: Vertex {
+                    position: [1.0, 0.0, 0.0],
+                    color: [0.0, 1.0, 0.0],
+                },
+                top_right: Vertex {
+                    position: [0.0, 1.0, 0.0],
+                    color: [0.0, 0.0, 1.0],
+                },
+                bottom_right: Vertex {
+                    position: [1.0, 1.0, 0.0],
+                    color: [0.0, 0.0, 0.0],
+                },
             },
-            bottom_left: Vertex {
-                position: [1.0, 0.0, 0.0],
-                color: [0.0, 1.0, 0.0],
-            },
-            top_right: Vertex {
-                position: [0.0, 1.0, 0.0],
-                color: [0.0, 0.0, 1.0],
-            },
-            bottom_right: Vertex {
-                position: [1.0, 1.0, 0.0],
-                color: [0.0, 0.0, 0.0],
-            },
-        });
-        quad_buffer.add_quad(Quad {
-            top_left: Vertex {
-                position: [0.0, 0.0, 0.0],
-                color: [1.0, 0.0, 0.0],
-            },
-            bottom_left: Vertex {
-                position: [-1.0, 0.0, 0.0],
-                color: [0.0, 1.0, 0.0],
-            },
-            top_right: Vertex {
-                position: [0.0, -1.0, 0.0],
-                color: [0.0, 0.0, 1.0],
-            },
-            bottom_right: Vertex {
-                position: [-1.0, -1.0, 0.0],
-                color: [0.0, 0.0, 0.0],
-            },
-        });
-
-        let vertex_buffer = device.create_buffer_with_data(
-            bytemuck::cast_slice(quad_buffer.quads()),
-            wgpu::BufferUsage::VERTEX,
+            &device,
+            &queue,
         );
-        let vertex_count = quad_buffer.quad_count() as u32 * 4u32;
-        let index_buffer = device.create_buffer_with_data(
-            bytemuck::cast_slice(quad_buffer.indices()),
-            wgpu::BufferUsage::INDEX,
+        quad_buffer.add_quad(
+            Quad {
+                top_left: Vertex {
+                    position: [-0.75, -0.25, 0.0],
+                    color: [1.0, 0.0, 0.0],
+                },
+                bottom_left: Vertex {
+                    position: [-0.75, -0.75, 0.0],
+                    color: [0.0, 1.0, 0.0],
+                },
+                top_right: Vertex {
+                    position: [-0.25, -0.25, 0.0],
+                    color: [0.0, 0.0, 1.0],
+                },
+                bottom_right: Vertex {
+                    position: [-0.25, -0.75, 0.0],
+                    color: [1.0, 1.0, 1.0],
+                },
+            },
+            &device,
+            &queue,
         );
-        let index_count = quad_buffer.index_count() as u32;
 
         Self {
             surface,
@@ -183,10 +176,6 @@ impl WGPURenderer {
             sc_desc,
             swap_chain,
             render_pipeline,
-            vertex_buffer,
-            vertex_count,
-            index_buffer,
-            index_count,
             quad_buffer,
             size,
         }
@@ -216,9 +205,9 @@ impl WGPURenderer {
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_vertex_buffer(0, &self.vertex_buffer, 0, 0);
-            render_pass.set_index_buffer(&self.index_buffer, 0, 0);
-            render_pass.draw_indexed(0..self.index_count as u32, 0, 0..1);
+            render_pass.set_vertex_buffer(0, self.quad_buffer.vertex_buffer(), 0, 0);
+            render_pass.set_index_buffer(self.quad_buffer.index_buffer(), 0, 0);
+            render_pass.draw_indexed(0..12 as u32, 0, 0..1);
         }
 
         self.queue.submit(&[encoder.finish()]);
@@ -276,50 +265,85 @@ unsafe impl bytemuck::Pod for Quad {}
 unsafe impl bytemuck::Zeroable for Quad {}
 
 struct QuadBuffer {
-    quads: Vec<Quad>,
-    indices: Vec<u16>,
+    vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
+    quad_count: usize,
 }
 
 impl QuadBuffer {
-    pub fn new() -> Self {
+    pub fn new(device: &wgpu::Device) -> Self {
+        let vertex_buffer = device.create_buffer(&BufferDescriptor {
+            label: Some("quad buffer"),
+            size: 4000,
+            usage: wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_DST,
+        });
+        let index_buffer = device.create_buffer(&BufferDescriptor {
+            label: Some("quad index buffer"),
+            size: 1000,
+            usage: wgpu::BufferUsage::INDEX | wgpu::BufferUsage::COPY_DST,
+        });
+
         QuadBuffer {
-            quads: vec![],
-            indices: vec![],
+            vertex_buffer,
+            index_buffer,
+            quad_count: 0,
         }
     }
 
-    pub fn add_quad(&mut self, quad: Quad) {
-        self.quads.push(quad);
+    pub fn add_quad(&mut self, quad: Quad, device: &wgpu::Device, queue: &wgpu::Queue) {
+        let mut command_encoder = device.create_command_encoder(&CommandEncoderDescriptor {
+            label: Some("Quad buffer command encoder"),
+        });
 
-        let last_index = if let Some(index) = self.indices.last() {
-            *index + 1
-        } else {
-            0
-        };
+        let vertices = device
+            .create_buffer_with_data(bytemuck::cast_slice(&[quad]), wgpu::BufferUsage::COPY_SRC);
 
-        self.indices.append(&mut vec![
-            last_index + 0,
-            last_index + 1,
-            last_index + 2,
-            last_index + 2,
-            last_index + 1,
-            last_index + 3,
-        ])
+        let mut next_index = self.quad_count as u16 * 4;
+        let indices = device.create_buffer_with_data(
+            bytemuck::cast_slice(&[
+                next_index + 0u16,
+                next_index + 1u16,
+                next_index + 2u16,
+                next_index + 2u16,
+                next_index + 1u16,
+                next_index + 3u16,
+            ]),
+            wgpu::BufferUsage::COPY_SRC,
+        );
+
+        command_encoder.copy_buffer_to_buffer(
+            &vertices,
+            0,
+            &self.vertex_buffer,
+            self.quad_count as u64 * std::mem::size_of::<Quad>() as u64,
+            std::mem::size_of::<Quad>() as u64,
+        );
+
+        command_encoder.copy_buffer_to_buffer(
+            &indices,
+            0,
+            &self.index_buffer,
+            self.quad_count as u64 * 6 * std::mem::size_of::<u16>() as u64,
+            6 * std::mem::size_of::<u16>() as u64,
+        );
+
+        queue.submit(&[command_encoder.finish()]);
+        self.quad_count += 1;
     }
 
-    pub fn quads(&self) -> &[Quad] {
-        self.quads.as_slice()
+    pub fn vertex_buffer(&self) -> &wgpu::Buffer {
+        &self.vertex_buffer
     }
 
-    pub fn indices(&self) -> &[u16] {
-        self.indices.as_slice()
+    pub fn index_buffer(&self) -> &wgpu::Buffer {
+        &self.index_buffer
     }
 
     pub fn quad_count(&self) -> usize {
-        self.quads.len()
+        self.quad_count
     }
 
     pub fn index_count(&self) -> usize {
-        self.indices.len()
+        self.quad_count * 6
     }
 }
