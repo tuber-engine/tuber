@@ -33,7 +33,7 @@ use winit::window::WindowBuilder;
 
 use graphics::SceneRenderer;
 
-mod graphics;
+pub mod graphics;
 mod platform;
 
 pub struct Engine {
@@ -72,7 +72,7 @@ impl Engine {
                 } => *control_flow = ControlFlow::Exit,
                 Event::RedrawRequested(_) => {
                     system_schedule.run(&mut ecs);
-                    renderer.render()
+                    renderer.render(&mut ecs)
                 }
                 Event::MainEventsCleared => {
                     window.request_redraw();

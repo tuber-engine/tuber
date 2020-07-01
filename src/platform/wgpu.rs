@@ -123,50 +123,6 @@ impl WGPURenderer {
         });
 
         let mut quad_buffer = QuadBuffer::new(1000, &device);
-        quad_buffer.add_quad(
-            Quad {
-                top_left: Vertex {
-                    position: [0.0, 0.0, 0.0],
-                    color: [1.0, 0.0, 0.0],
-                },
-                bottom_left: Vertex {
-                    position: [1.0, 0.0, 0.0],
-                    color: [0.0, 1.0, 0.0],
-                },
-                top_right: Vertex {
-                    position: [0.0, 1.0, 0.0],
-                    color: [0.0, 0.0, 1.0],
-                },
-                bottom_right: Vertex {
-                    position: [1.0, 1.0, 0.0],
-                    color: [0.0, 0.0, 0.0],
-                },
-            },
-            &device,
-            &queue,
-        );
-        quad_buffer.add_quad(
-            Quad {
-                top_left: Vertex {
-                    position: [-0.75, -0.25, 0.0],
-                    color: [1.0, 0.0, 0.0],
-                },
-                bottom_left: Vertex {
-                    position: [-0.75, -0.75, 0.0],
-                    color: [0.0, 1.0, 0.0],
-                },
-                top_right: Vertex {
-                    position: [-0.25, -0.25, 0.0],
-                    color: [0.0, 0.0, 1.0],
-                },
-                bottom_right: Vertex {
-                    position: [-0.25, -0.75, 0.0],
-                    color: [1.0, 1.0, 1.0],
-                },
-            },
-            &device,
-            &queue,
-        );
 
         Self {
             surface,
@@ -207,7 +163,7 @@ impl WGPURenderer {
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_vertex_buffer(0, self.quad_buffer.vertex_buffer(), 0, 0);
             render_pass.set_index_buffer(self.quad_buffer.index_buffer(), 0, 0);
-            render_pass.draw_indexed(0..12 as u32, 0, 0..1);
+            render_pass.draw_indexed(0..self.quad_buffer.index_count() as u32, 0, 0..1);
         }
 
         self.queue.submit(&[encoder.finish()]);
@@ -215,8 +171,34 @@ impl WGPURenderer {
 }
 
 impl SceneRenderer for WGPURenderer {
-    fn render(&mut self) {
+    fn render(&mut self, ecs: &mut Ecs) {
+        for (position, shape) in <(Imm<Position>, Imm<SquareShape>)>::fetch(ecs) {
+            self.quad_buffer.add_quad(
+                Quad {
+                    top_left: Vertex {
+                        position: [position.x, position.y + shape.height, 0.0],
+                        color: [shape.color.0, shape.color.1, shape.color.2],
+                    },
+                    bottom_left: Vertex {
+                        position: [position.x, position.y, 0.0],
+                        color: [shape.color.0, shape.color.1, shape.color.2],
+                    },
+                    top_right: Vertex {
+                        position: [position.x + shape.width, position.y + shape.height, 0.0],
+                        color: [shape.color.0, shape.color.1, shape.color.2],
+                    },
+                    bottom_right: Vertex {
+                        position: [position.x + shape.width, position.y, 0.0],
+                        color: [shape.color.0, shape.color.1, shape.color.2],
+                    },
+                },
+                &self.device,
+                &self.queue,
+            )
+        }
+
         self.process_queue();
+        self.quad_buffer.clear();
     }
 }
 
@@ -342,6 +324,10 @@ impl QuadBuffer {
 
         queue.submit(&[command_encoder.finish()]);
         self.quad_count += 1;
+    }
+
+    pub fn clear(&mut self) {
+        self.quad_count = 0;
     }
 
     pub fn vertex_buffer(&self) -> &wgpu::Buffer {
