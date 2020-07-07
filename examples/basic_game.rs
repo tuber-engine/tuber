@@ -13,18 +13,20 @@ struct GameState;
 impl State for GameState {
     fn initialize(&mut self, ecs: &mut Ecs, systems: &mut SystemSchedule) {
         for _ in 0..25 {
+            let width = 10.0 + rand::random::<f32>() * 100.0;
+            let height = 10.0 + rand::random::<f32>() * 100.0;
             ecs.new_entity()
                 .with_component(Position {
-                    x: rand::random::<f32>() / 1.1f32,
-                    y: rand::random::<f32>() / 1.1f32,
+                    x: rand::random::<f32>() * (800.0 - width),
+                    y: rand::random::<f32>() * (600.0 - height),
                 })
                 .with_component(Velocity(
-                    rand::random::<f32>() / 50f32,
-                    rand::random::<f32>() / 50f32,
+                    rand::random::<f32>() * 5.0,
+                    rand::random::<f32>() * 5.0,
                 ))
                 .with_component(RectangleShape {
-                    width: 0.1 + rand::random::<f32>() / 10.0f32,
-                    height: 0.1 + rand::random::<f32>() / 10.0f32,
+                    width,
+                    height,
                     color: (rand::random(), rand::random(), rand::random()),
                 })
                 .build();
@@ -33,12 +35,12 @@ impl State for GameState {
         systems.add_system(
             System::<(Mut<Position>, Imm<RectangleShape>, Mut<Velocity>)>::new(
                 |(position, shape, velocity)| {
-                    if (position.x + shape.width + velocity.0 > 1.0)
+                    if (position.x + shape.width + velocity.0 > 800.0)
                         || (position.x + velocity.0 < 0.0)
                     {
                         velocity.0 = -velocity.0;
                     }
-                    if (position.y + shape.height + velocity.1 > 1.0)
+                    if (position.y + shape.height + velocity.1 > 600.0)
                         || (position.y + velocity.1 < 0.0)
                     {
                         velocity.1 = -velocity.1;

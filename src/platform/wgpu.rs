@@ -1,4 +1,4 @@
-use crate::graphics::{SceneRenderer, RectangleShape};
+use crate::graphics::{RectangleShape, SceneRenderer};
 use crate::Position;
 use async_trait::async_trait;
 use futures::TryFutureExt;
@@ -19,9 +19,20 @@ pub struct WGPURenderer {
     swap_chain: wgpu::SwapChain,
     render_pipeline: wgpu::RenderPipeline,
     quad_buffer: QuadBuffer,
+    view_projection_matrix: cgmath::Matrix4<f32>,
+    uniform_buffer: wgpu::Buffer,
+    uniform_bind_group: wgpu::BindGroup,
     size: PhysicalSize<u32>,
 }
 impl WGPURenderer {
+    #[cfg_attr(rustfmt, rustfmt_skip)]
+    pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
+        1.0, 0.0, 0.0, 0.0,
+        0.0, 1.0, 0.0, 0.0,
+        0.0, 0.0, 0.5, 0.0,
+        0.0, 0.0, 0.5, 1.0
+    );
+
     pub async fn new(window: &Window) -> Self {
         let size = window.inner_size();
         let surface = wgpu::Surface::create(window);
@@ -83,9 +94,49 @@ impl WGPURenderer {
         let vs_module = device.create_shader_module(&vs_data);
         let fs_module = device.create_shader_module(&fs_data);
 
+        let mut quad_buffer = QuadBuffer::new(1000, &device);
+        let view_matrix = cgmath::Matrix4::look_at(
+            (0.0, 0.0, 1.0).into(),
+            (0.0, 0.0, -1.0).into(),
+            (0.0, 1.0, 0.0).into(),
+        );
+        let view_projection_matrix = Self::OPENGL_TO_WGPU_MATRIX
+            * cgmath::ortho(0.0f32, 800.0f32, 600.0f32, 0.0f32, 0.0f32, 100.0f32)
+            * view_matrix;
+
+        let mut uniforms = Uniforms::new();
+        uniforms.update_view_projection_matrix(view_projection_matrix);
+
+        let uniform_buffer = device.create_buffer_with_data(
+            bytemuck::cast_slice(&[uniforms]),
+            wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
+        );
+
+        let uniform_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                bindings: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStage::VERTEX,
+                    ty: wgpu::BindingType::UniformBuffer { dynamic: false },
+                }],
+                label: Some("uniform_bind_group_layout"),
+            });
+
+        let uniform_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &uniform_bind_group_layout,
+            bindings: &[wgpu::Binding {
+                binding: 0,
+                resource: wgpu::BindingResource::Buffer {
+                    buffer: &uniform_buffer,
+                    range: 0..std::mem::size_of_val(&uniforms) as wgpu::BufferAddress,
+                },
+            }],
+            label: Some("uniform_bind_group"),
+        });
+
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                bind_group_layouts: &[],
+                bind_group_layouts: &[&uniform_bind_group_layout],
             });
 
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -122,8 +173,6 @@ impl WGPURenderer {
             alpha_to_coverage_enabled: false,
         });
 
-        let mut quad_buffer = QuadBuffer::new(1000, &device);
-
         Self {
             surface,
             adapter,
@@ -133,6 +182,9 @@ impl WGPURenderer {
             swap_chain,
             render_pipeline,
             quad_buffer,
+            view_projection_matrix,
+            uniform_buffer,
+            uniform_bind_group,
             size,
         }
     }
@@ -161,6 +213,7 @@ impl WGPURenderer {
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.quad_buffer.vertex_buffer(), 0, 0);
             render_pass.set_index_buffer(self.quad_buffer.index_buffer(), 0, 0);
             render_pass.draw_indexed(0..self.quad_buffer.index_count() as u32, 0, 0..1);
@@ -176,19 +229,19 @@ impl SceneRenderer for WGPURenderer {
             self.quad_buffer.add_quad(
                 Quad {
                     top_left: Vertex {
-                        position: [position.x, position.y + shape.height, 0.0],
+                        position: [position.x, position.y, 1.0],
                         color: [shape.color.0, shape.color.1, shape.color.2],
                     },
                     bottom_left: Vertex {
-                        position: [position.x, position.y, 0.0],
+                        position: [position.x, position.y + shape.height, 1.0],
                         color: [shape.color.0, shape.color.1, shape.color.2],
                     },
                     top_right: Vertex {
-                        position: [position.x + shape.width, position.y + shape.height, 0.0],
+                        position: [position.x + shape.width, position.y, 1.0],
                         color: [shape.color.0, shape.color.1, shape.color.2],
                     },
                     bottom_right: Vertex {
-                        position: [position.x + shape.width, position.y, 0.0],
+                        position: [position.x + shape.width, position.y + shape.height, 1.0],
                         color: [shape.color.0, shape.color.1, shape.color.2],
                     },
                 },
@@ -201,6 +254,28 @@ impl SceneRenderer for WGPURenderer {
         self.quad_buffer.clear();
     }
 }
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+struct Uniforms {
+    view_projection_matrix: cgmath::Matrix4<f32>,
+}
+
+impl Uniforms {
+    fn new() -> Self {
+        use cgmath::SquareMatrix;
+        Self {
+            view_projection_matrix: cgmath::Matrix4::identity(),
+        }
+    }
+
+    fn update_view_projection_matrix(&mut self, projection_matrix: cgmath::Matrix4<f32>) {
+        self.view_projection_matrix = projection_matrix;
+    }
+}
+
+unsafe impl bytemuck::Pod for Uniforms {}
+unsafe impl bytemuck::Zeroable for Uniforms {}
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
