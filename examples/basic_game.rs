@@ -3,7 +3,7 @@ use tecs::{
     query::{Imm, Mut},
     system::System,
 };
-use tuber::graphics::SquareShape;
+use tuber::graphics::RectangleShape;
 use tuber::{Engine, Position, State, SystemSchedule};
 
 #[derive(Debug)]
@@ -22,7 +22,7 @@ impl State for GameState {
                     rand::random::<f32>() / 50f32,
                     rand::random::<f32>() / 50f32,
                 ))
-                .with_component(SquareShape {
+                .with_component(RectangleShape {
                     width: 0.1 + rand::random::<f32>() / 10.0f32,
                     height: 0.1 + rand::random::<f32>() / 10.0f32,
                     color: (rand::random(), rand::random(), rand::random()),
@@ -31,7 +31,7 @@ impl State for GameState {
         }
 
         systems.add_system(
-            System::<(Mut<Position>, Imm<SquareShape>, Mut<Velocity>)>::new(
+            System::<(Mut<Position>, Imm<RectangleShape>, Mut<Velocity>)>::new(
                 |(position, shape, velocity)| {
                     if (position.x + shape.width + velocity.0 > 1.0)
                         || (position.x + velocity.0 < 0.0)

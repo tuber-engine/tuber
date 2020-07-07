@@ -1,4 +1,4 @@
-use crate::graphics::{SceneRenderer, SquareShape};
+use crate::graphics::{SceneRenderer, RectangleShape};
 use crate::Position;
 use async_trait::async_trait;
 use futures::TryFutureExt;
@@ -172,7 +172,7 @@ impl WGPURenderer {
 
 impl SceneRenderer for WGPURenderer {
     fn render(&mut self, ecs: &mut Ecs) {
-        for (position, shape) in <(Imm<Position>, Imm<SquareShape>)>::fetch(ecs) {
+        for (position, shape) in <(Imm<Position>, Imm<RectangleShape>)>::fetch(ecs) {
             self.quad_buffer.add_quad(
                 Quad {
                     top_left: Vertex {
