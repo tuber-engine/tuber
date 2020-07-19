@@ -35,6 +35,7 @@ use graphics::SceneRenderer;
 
 pub mod graphics;
 mod platform;
+mod resource_manager;
 
 pub struct Engine {
     application_title: String,
