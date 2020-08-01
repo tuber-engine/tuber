@@ -2,10 +2,8 @@ use crate::graphics::{RectangleShape, SceneRenderer};
 use crate::Position;
 use async_trait::async_trait;
 use futures::TryFutureExt;
+use legion::prelude::*;
 use shaderc;
-use tecs::core::Ecs;
-use tecs::query::Imm;
-use tecs::query::Queryable;
 use wgpu::{BufferDescriptor, BufferUsage, CommandEncoderDescriptor, PresentMode, TextureFormat};
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
@@ -224,8 +222,8 @@ impl WGPURenderer {
 }
 
 impl SceneRenderer for WGPURenderer {
-    fn render(&mut self, ecs: &mut Ecs) {
-        for (position, shape) in <(Imm<Position>, Imm<RectangleShape>)>::fetch(ecs) {
+    fn render(&mut self, world: &mut World) {
+        for (position, shape) in <(Read<Position>, Read<RectangleShape>)>::query().iter(world) {
             self.quad_buffer.add_quad(
                 Quad {
                     top_left: Vertex {

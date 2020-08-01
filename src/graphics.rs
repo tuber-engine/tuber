@@ -1,5 +1,5 @@
+use crate::ecs::prelude::*;
 use async_trait::async_trait;
-use tecs::core::Ecs;
 
 pub type Color = (f32, f32, f32);
 
@@ -11,5 +11,5 @@ pub struct RectangleShape {
 }
 
 pub trait SceneRenderer {
-    fn render(&mut self, ecs: &mut Ecs);
+    fn render(&mut self, world: &mut World);
 }

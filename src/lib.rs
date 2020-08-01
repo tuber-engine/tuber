@@ -22,16 +22,13 @@
 * SOFTWARE.
 */
 use crate::platform::wgpu::WGPURenderer;
-use tecs::{
-    core::Ecs,
-    query::Queryable,
-    system::{Runnable, System},
-};
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
 
+use ecs::prelude::*;
 use graphics::SceneRenderer;
+pub use legion as ecs;
 
 pub mod graphics;
 mod platform;
@@ -58,10 +55,8 @@ impl Engine {
             .build(&event_loop)?;
         let mut renderer = WGPURenderer::new(&window).await;
 
-        let mut ecs = Ecs::new();
-        let mut system_schedule = SystemSchedule::new();
-
-        initial_state.initialize(&mut ecs, &mut system_schedule);
+        let mut world = World::default();
+        let mut schedule = initial_state.initialize(&mut world);
 
         event_loop.run(move |event, _, control_flow| {
             *control_flow = winit::event_loop::ControlFlow::Poll;
@@ -72,8 +67,8 @@ impl Engine {
                     ..
                 } => *control_flow = ControlFlow::Exit,
                 Event::RedrawRequested(_) => {
-                    system_schedule.run(&mut ecs);
-                    renderer.render(&mut ecs)
+                    schedule.execute(&mut world, &mut Resources::default());
+                    renderer.render(&mut world)
                 }
                 Event::MainEventsCleared => {
                     window.request_redraw();
@@ -85,27 +80,7 @@ impl Engine {
 }
 
 pub trait State {
-    fn initialize(&mut self, ecs: &mut Ecs, system_schedule: &mut SystemSchedule);
-}
-
-pub struct SystemSchedule {
-    systems: Vec<Box<dyn Runnable>>,
-}
-
-impl SystemSchedule {
-    pub fn new() -> Self {
-        Self { systems: vec![] }
-    }
-
-    pub fn add_system<Q: 'static + for<'a> Queryable<'a>>(&mut self, system: System<'static, Q>) {
-        self.systems.push(Box::new(system))
-    }
-
-    pub fn run(&mut self, ecs: &mut Ecs) {
-        for system in &mut self.systems {
-            system.run(ecs);
-        }
-    }
+    fn initialize(&mut self, world: &mut World) -> Schedule;
 }
 
 #[derive(Debug)]
