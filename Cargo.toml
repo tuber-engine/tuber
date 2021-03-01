@@ -5,7 +5,7 @@ authors = ["Clément Sibille <clement.sibille@protonmail.com>"]
 edition = "2018"
 
 [workspace]
-members = ["examples/*"]
+members = ["examples/*", "crates/*"]
 
 [features]
 default = []
@@ -15,4 +15,5 @@ name = "basic_application"
 path = "examples/basic-application/src/main.rs"
 
 [dependencies]
-winit = "0.24.0"
+tuber-core = { path = "crates/tuber-core", version = "0.1.0" }
+tuber-winit = { path = "crates/tuber-winit", version = "0.1.0" }
