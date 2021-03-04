@@ -42,7 +42,7 @@ impl Ecs {
         Ok(entity)
     }
 
-    pub fn entity<CB: ComponentBundle>(&self, entity: Entity) {}
+    pub fn entity<CB: ComponentBundle>(&self, _entity: Entity) {}
 }
 
 pub struct Archetype {
@@ -86,7 +86,7 @@ impl Archetype {
         use std::alloc::{alloc, dealloc, Layout};
 
         let computed_size = self.compute_required_size_for_capacity(new_capacity);
-        let mut new_data = NonNull::dangling();
+        let new_data;
         let alignment = self.data_alignment();
         unsafe {
             new_data = NonNull::new(alloc(
