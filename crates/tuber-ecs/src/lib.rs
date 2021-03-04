@@ -22,7 +22,15 @@ impl Ecs {
         self.next_entity - 1
     }
 
-    pub fn insert<CB: ComponentBundle>(&mut self, component_bundle: CB) -> Result<Entity> {
+    pub fn insert<CB: ComponentBundle>(&mut self, component_bundles: Vec<CB>) -> Result<()> {
+        for component_bundle in component_bundles.into_iter() {
+            self.insert_one(component_bundle)?;
+        }
+
+        Ok(())
+    }
+
+    fn insert_one<CB: ComponentBundle>(&mut self, component_bundle: CB) -> Result<Entity> {
         let entity = self.next_entity;
         let archetype = self
             .archetype_store
@@ -222,26 +230,33 @@ mod tests {
     #[test]
     fn ecs_insert_one_entity() {
         let mut ecs = Ecs::new();
-        ecs.insert((Position { x: 2.0, y: 1.0 }, Velocity { x: 1.5, y: 2.6 }))
-            .unwrap();
+        ecs.insert(vec![(
+            Position { x: 2.0, y: 1.0 },
+            Velocity { x: 1.5, y: 2.6 },
+        )])
+        .unwrap();
         assert_eq!(ecs.entity_count(), 1usize);
     }
 
     #[test]
     fn ecs_insert_two_entities() {
         let mut ecs = Ecs::new();
-        ecs.insert((Position { x: 2.0, y: 1.0 }, Velocity { x: 1.5, y: 2.6 }))
-            .unwrap();
-        ecs.insert((Position { x: 0.2, y: 0.5 }, Velocity { x: 3.0, y: 2.0 }))
-            .unwrap();
+        ecs.insert(vec![
+            (Position { x: 2.0, y: 1.0 }, Velocity { x: 1.5, y: 2.6 }),
+            (Position { x: 0.2, y: 0.5 }, Velocity { x: 3.0, y: 2.0 }),
+        ])
+        .unwrap();
         assert_eq!(ecs.entity_count(), 2usize);
     }
 
     #[test]
     fn ecs_entity() {
         let mut ecs = Ecs::new();
-        ecs.insert((Position { x: 2.0, y: 1.0 }, Velocity { x: 1.5, y: 2.6 }))
-            .unwrap();
+        ecs.insert(vec![(
+            Position { x: 2.0, y: 1.0 },
+            Velocity { x: 1.5, y: 2.6 },
+        )])
+        .unwrap();
         /*let (position, velocity) = ecs.entity::<(Position, Velocity)>(0);
         assert_eq!(position, Position { x: 2.0, y: 1.0 });
         assert_eq!(velocity, Velocity { x: 1.5, y: 2.6 });*/
