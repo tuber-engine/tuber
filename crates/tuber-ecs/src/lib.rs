@@ -78,13 +78,8 @@ impl Archetype {
         use std::alloc::{alloc, dealloc, Layout};
 
         let computed_size = self.compute_required_size_for_capacity(new_capacity);
-        dbg!(computed_size);
         let mut new_data = NonNull::dangling();
-
-        let alignment = self
-            .types_metadata
-            .first()
-            .map_or(1, |tm| tm.layout.align());
+        let alignment = self.data_alignment();
         unsafe {
             new_data = NonNull::new(alloc(
                 Layout::from_size_align(computed_size, alignment).unwrap(),
@@ -133,6 +128,26 @@ impl Archetype {
                 .as_ptr()
                 .add(type_offset + data_index * data_size)
                 .cast::<u8>()
+        }
+    }
+
+    fn data_alignment(&self) -> usize {
+        self.types_metadata
+            .first()
+            .map_or(1, |tm| tm.layout.align())
+    }
+}
+
+impl Drop for Archetype {
+    fn drop(&mut self) {
+        use std::alloc::{dealloc, Layout};
+        if self.size > 0 {
+            unsafe {
+                dealloc(
+                    self.data.as_ptr(),
+                    Layout::from_size_align(self.size, self.data_alignment()).unwrap(),
+                );
+            }
         }
     }
 }
