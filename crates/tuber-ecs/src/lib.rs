@@ -33,12 +33,15 @@ impl Ecs {
         self.next_entity += 1;
         Ok(entity)
     }
+
+    pub fn entity<CB: ComponentBundle>(&self, entity: Entity) {}
 }
 
 pub struct Archetype {
     data: NonNull<u8>,
     capacity: usize,
     entity_count: usize,
+    size: usize,
     types_metadata: Vec<TypeMetadata>,
     type_offsets: Vec<usize>,
     stored_entities: Vec<Entity>,
@@ -50,6 +53,7 @@ impl Archetype {
             data: NonNull::dangling(),
             capacity: 0usize,
             entity_count: 0usize,
+            size: 0usize,
             types_metadata,
             type_offsets: vec![0; length],
             stored_entities: vec![],
@@ -71,27 +75,33 @@ impl Archetype {
     }
 
     fn grow(&mut self, new_capacity: usize) {
-        use std::alloc::{alloc, Layout};
+        use std::alloc::{alloc, dealloc, Layout};
 
         let computed_size = self.compute_required_size_for_capacity(new_capacity);
-
+        dbg!(computed_size);
         let mut new_data = NonNull::dangling();
+
+        let alignment = self
+            .types_metadata
+            .first()
+            .map_or(1, |tm| tm.layout.align());
         unsafe {
-            if self.capacity == 0 {
-                new_data = NonNull::new(alloc(
-                    Layout::from_size_align(
-                        computed_size,
-                        self.types_metadata
-                            .first()
-                            .map_or(1, |tm| tm.layout.align()),
-                    )
-                    .unwrap(),
-                ))
-                .unwrap();
+            new_data = NonNull::new(alloc(
+                Layout::from_size_align(computed_size, alignment).unwrap(),
+            ))
+            .unwrap();
+
+            if self.capacity != 0 {
+                dealloc(
+                    self.data.as_ptr(),
+                    Layout::from_size_align(self.size, alignment).unwrap(),
+                )
             }
         }
 
         self.data = new_data;
+        self.capacity = new_capacity;
+        self.size = computed_size;
     }
 
     fn compute_required_size_for_capacity(&mut self, capacity: usize) -> usize {
@@ -104,20 +114,24 @@ impl Archetype {
         size
     }
 
-    pub fn write_component(&mut self, type_index: usize, data_index: usize, data: *const u8) {
-        let type_metadata = &self.types_metadata[type_index];
-        let ptr = self.component_ptr(data_index, type_index);
-        unsafe { std::ptr::copy(data, ptr, type_metadata.layout.size()) }
+    pub fn write_component(
+        &mut self,
+        type_index: usize,
+        data_index: usize,
+        data_size: usize,
+        data: *const u8,
+    ) {
+        let ptr = self.component_ptr(data_index, data_size, type_index);
+        unsafe { std::ptr::copy(data, ptr, data_size) }
     }
 
-    fn component_ptr(&self, data_index: usize, type_index: usize) -> *mut u8 {
-        let type_metadata = &self.types_metadata[type_index];
+    fn component_ptr(&self, data_index: usize, data_size: usize, type_index: usize) -> *mut u8 {
         let type_offset = self.type_offsets[type_index];
 
         unsafe {
             self.data
                 .as_ptr()
-                .add(type_offset + data_index * type_metadata.layout.size())
+                .add(type_offset + data_index * data_size)
                 .cast::<u8>()
         }
     }
@@ -135,8 +149,18 @@ impl<A: 'static, B: 'static> ComponentBundle for (A, B) {
     }
 
     fn write_into(&self, archetype: &mut Archetype, data_index: usize) {
-        archetype.write_component(0, data_index, &self.0 as *const A as *const u8);
-        archetype.write_component(1, data_index, &self.1 as *const B as *const u8);
+        archetype.write_component(
+            0,
+            data_index,
+            std::mem::size_of::<A>(),
+            &self.0 as *const A as *const u8,
+        );
+        archetype.write_component(
+            1,
+            data_index,
+            std::mem::size_of::<B>(),
+            &self.1 as *const B as *const u8,
+        );
     }
 
     fn metadata(&self) -> Vec<TypeMetadata> {
@@ -196,6 +220,16 @@ mod tests {
         ecs.insert((Position { x: 0.2, y: 0.5 }, Velocity { x: 3.0, y: 2.0 }))
             .unwrap();
         assert_eq!(ecs.entity_count(), 2usize);
+    }
+
+    #[test]
+    fn ecs_entity() {
+        let mut ecs = Ecs::new();
+        ecs.insert((Position { x: 2.0, y: 1.0 }, Velocity { x: 1.5, y: 2.6 }))
+            .unwrap();
+        /*let (position, velocity) = ecs.entity::<(Position, Velocity)>(0);
+        assert_eq!(position, Position { x: 2.0, y: 1.0 });
+        assert_eq!(velocity, Velocity { x: 1.5, y: 2.6 });*/
     }
 
     #[test]
