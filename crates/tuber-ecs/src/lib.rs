@@ -56,6 +56,14 @@ impl Ecs {
         let archetype = self.archetype_store.get(&CB::type_ids()).unwrap();
         CB::read_entity(archetype, entity)
     }
+
+    pub fn entity_mut<CB: for<'a> ComponentBundle<'a>>(
+        &self,
+        entity: Entity,
+    ) -> Result<<CB as ComponentBundle<'_>>::RefMut> {
+        let archetype = self.archetype_store.get(&CB::type_ids()).unwrap();
+        CB::read_entity_mut(archetype, entity)
+    }
 }
 
 pub struct Archetype {
@@ -161,6 +169,16 @@ impl Archetype {
         unsafe { (ptr as *const C).as_ref().unwrap() }
     }
 
+    pub fn read_component_mut<C>(
+        &self,
+        type_index: usize,
+        data_index: usize,
+        data_size: usize,
+    ) -> &mut C {
+        let ptr = self.component_ptr(data_index, data_size, type_index);
+        unsafe { (ptr as *mut C).as_mut().unwrap() }
+    }
+
     fn component_ptr(&self, data_index: usize, data_size: usize, type_index: usize) -> *mut u8 {
         let type_offset = self.type_offsets[type_index];
 
@@ -195,14 +213,18 @@ impl Drop for Archetype {
 
 pub trait ComponentBundle<'a> {
     type Ref;
+    type RefMut;
     fn type_ids() -> Box<[TypeId]>;
     fn write_into(&self, archetype: &mut Archetype, data_index: usize);
     fn metadata(&self) -> Vec<TypeMetadata>;
     fn read_entity(archetype: &'a Archetype, entity: Entity) -> Result<Self::Ref>;
+    fn read_entity_mut(archetype: &'a Archetype, entity: Entity) -> Result<Self::RefMut>;
 }
 
 impl<'a, A: 'static, B: 'static> ComponentBundle<'a> for (A, B) {
     type Ref = (&'a A, &'a B);
+    type RefMut = (&'a mut A, &'a mut B);
+
     fn type_ids() -> Box<[TypeId]> {
         Box::new([TypeId::of::<A>(), TypeId::of::<B>()])
     }
@@ -238,6 +260,14 @@ impl<'a, A: 'static, B: 'static> ComponentBundle<'a> for (A, B) {
         Ok((
             archetype.read_component::<A>(0, data_index, std::mem::size_of::<A>()),
             archetype.read_component::<B>(1, data_index, std::mem::size_of::<B>()),
+        ))
+    }
+
+    fn read_entity_mut(archetype: &'a Archetype, entity: usize) -> Result<Self::RefMut> {
+        let data_index = archetype.data_index_for_entity(entity);
+        Ok((
+            archetype.read_component_mut::<A>(0, data_index, std::mem::size_of::<A>()),
+            archetype.read_component_mut::<B>(1, data_index, std::mem::size_of::<B>()),
         ))
     }
 }
@@ -316,6 +346,25 @@ mod tests {
         let (position, velocity) = ecs.entity::<(Position, Velocity)>(second_entity).unwrap();
         assert_eq!(position, &Position { x: 4.0, y: 1.0 });
         assert_eq!(velocity, &Velocity { x: 1.2, y: 28.6 });
+    }
+
+    #[test]
+    fn ecs_entity_mut() {
+        let mut ecs = Ecs::new();
+        let entity = ecs
+            .insert_one((Position { x: 2.0, y: 1.0 }, Velocity { x: 1.5, y: 2.6 }))
+            .unwrap();
+
+        let (position, velocity) = ecs.entity_mut::<(Position, Velocity)>(entity).unwrap();
+        assert_eq!(position, &mut Position { x: 2.0, y: 1.0 });
+        assert_eq!(velocity, &mut Velocity { x: 1.5, y: 2.6 });
+
+        position.x = 0.0;
+        velocity.y = 50.0;
+
+        let (position, velocity) = ecs.entity::<(Position, Velocity)>(entity).unwrap();
+        assert_eq!(position, &mut Position { x: 0.0, y: 1.0 });
+        assert_eq!(velocity, &mut Velocity { x: 1.5, y: 50.0 });
     }
 
     #[test]
