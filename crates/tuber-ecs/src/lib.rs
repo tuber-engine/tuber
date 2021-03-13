@@ -4,9 +4,10 @@ use std::ptr::NonNull;
 use tuber_core::Result;
 
 pub type Entity = usize;
+pub type ArchetypeStore = HashMap<Box<[TypeId]>, Archetype>;
 
 pub struct Ecs {
-    archetype_store: HashMap<Box<[TypeId]>, Archetype>,
+    archetype_store: ArchetypeStore,
     next_entity: Entity,
 }
 
@@ -22,7 +23,10 @@ impl Ecs {
         self.next_entity - 1
     }
 
-    pub fn insert<CB: ComponentBundle>(&mut self, component_bundles: Vec<CB>) -> Result<()> {
+    pub fn insert<CB: for<'a> ComponentBundle<'a>>(
+        &mut self,
+        component_bundles: Vec<CB>,
+    ) -> Result<()> {
         for component_bundle in component_bundles.into_iter() {
             self.insert_one(component_bundle)?;
         }
@@ -30,11 +34,14 @@ impl Ecs {
         Ok(())
     }
 
-    fn insert_one<CB: ComponentBundle>(&mut self, component_bundle: CB) -> Result<Entity> {
+    pub fn insert_one<CB: for<'a> ComponentBundle<'a>>(
+        &mut self,
+        component_bundle: CB,
+    ) -> Result<Entity> {
         let entity = self.next_entity;
         let archetype = self
             .archetype_store
-            .entry(component_bundle.type_ids())
+            .entry(CB::type_ids())
             .or_insert(Archetype::new(component_bundle.metadata()));
         let data_index = archetype.allocate_storage_for_entity(entity);
         component_bundle.write_into(archetype, data_index);
@@ -42,7 +49,13 @@ impl Ecs {
         Ok(entity)
     }
 
-    pub fn entity<CB: ComponentBundle>(&self, _entity: Entity) {}
+    pub fn entity<CB: for<'a> ComponentBundle<'a>>(
+        &self,
+        entity: Entity,
+    ) -> Result<<CB as ComponentBundle<'_>>::Ref> {
+        let archetype = self.archetype_store.get(&CB::type_ids()).unwrap();
+        CB::read_entity(archetype, entity)
+    }
 }
 
 pub struct Archetype {
@@ -52,7 +65,7 @@ pub struct Archetype {
     size: usize,
     types_metadata: Vec<TypeMetadata>,
     type_offsets: Vec<usize>,
-    stored_entities: Vec<Entity>,
+    stored_entities: HashMap<Entity, usize>,
 }
 impl Archetype {
     pub fn new(types_metadata: Vec<TypeMetadata>) -> Self {
@@ -64,7 +77,7 @@ impl Archetype {
             size: 0usize,
             types_metadata,
             type_offsets: vec![0; length],
-            stored_entities: vec![],
+            stored_entities: HashMap::new(),
         }
     }
 
@@ -77,15 +90,19 @@ impl Archetype {
             }
         }
 
-        self.stored_entities.push(entity);
+        self.stored_entities.insert(entity, self.entity_count);
         self.entity_count += 1;
         self.entity_count - 1
+    }
+
+    pub fn data_index_for_entity(&self, entity: Entity) -> usize {
+        self.stored_entities[&entity]
     }
 
     fn grow(&mut self, new_capacity: usize) {
         use std::alloc::{alloc, dealloc, Layout};
 
-        let computed_size = self.compute_required_size_for_capacity(new_capacity);
+        let (computed_size, type_offsets) = self.compute_required_size_for_capacity(new_capacity);
         let new_data;
         let alignment = self.data_alignment();
         unsafe {
@@ -95,6 +112,15 @@ impl Archetype {
             .unwrap();
 
             if self.capacity != 0 {
+                for (type_index, type_metadata) in self.types_metadata.iter().enumerate() {
+                    let old_offset = self.type_offsets[type_index];
+                    let new_offset = type_offsets[type_index];
+                    std::ptr::copy_nonoverlapping(
+                        self.data.as_ptr().add(old_offset),
+                        new_data.as_ptr().add(new_offset),
+                        self.entity_count * type_metadata.layout.size(),
+                    );
+                }
                 dealloc(
                     self.data.as_ptr(),
                     Layout::from_size_align(self.size, alignment).unwrap(),
@@ -103,18 +129,20 @@ impl Archetype {
         }
 
         self.data = new_data;
+        self.type_offsets = type_offsets;
         self.capacity = new_capacity;
         self.size = computed_size;
     }
 
-    fn compute_required_size_for_capacity(&mut self, capacity: usize) -> usize {
+    fn compute_required_size_for_capacity(&mut self, capacity: usize) -> (usize, Vec<usize>) {
         let mut size = 0;
+        let mut type_offsets = vec![0; self.types_metadata.len()];
         for (i, type_metadata) in self.types_metadata.iter().enumerate() {
             size = align_value(size, type_metadata.layout.align());
-            self.type_offsets[i] = size;
+            type_offsets[i] = size;
             size += type_metadata.layout.size() * capacity;
         }
-        size
+        (size, type_offsets)
     }
 
     pub fn write_component(
@@ -126,6 +154,11 @@ impl Archetype {
     ) {
         let ptr = self.component_ptr(data_index, data_size, type_index);
         unsafe { std::ptr::copy(data, ptr, data_size) }
+    }
+
+    pub fn read_component<C>(&self, type_index: usize, data_index: usize, data_size: usize) -> &C {
+        let ptr = self.component_ptr(data_index, data_size, type_index);
+        unsafe { (ptr as *const C).as_ref().unwrap() }
     }
 
     fn component_ptr(&self, data_index: usize, data_size: usize, type_index: usize) -> *mut u8 {
@@ -160,14 +193,17 @@ impl Drop for Archetype {
     }
 }
 
-pub trait ComponentBundle {
-    fn type_ids(&self) -> Box<[TypeId]>;
-    fn write_into(&self, archetype: &mut Archetype, entity: Entity);
+pub trait ComponentBundle<'a> {
+    type Ref;
+    fn type_ids() -> Box<[TypeId]>;
+    fn write_into(&self, archetype: &mut Archetype, data_index: usize);
     fn metadata(&self) -> Vec<TypeMetadata>;
+    fn read_entity(archetype: &'a Archetype, entity: Entity) -> Result<Self::Ref>;
 }
 
-impl<A: 'static, B: 'static> ComponentBundle for (A, B) {
-    fn type_ids(&self) -> Box<[TypeId]> {
+impl<'a, A: 'static, B: 'static> ComponentBundle<'a> for (A, B) {
+    type Ref = (&'a A, &'a B);
+    fn type_ids() -> Box<[TypeId]> {
         Box::new([TypeId::of::<A>(), TypeId::of::<B>()])
     }
 
@@ -185,7 +221,6 @@ impl<A: 'static, B: 'static> ComponentBundle for (A, B) {
             &self.1 as *const B as *const u8,
         );
     }
-
     fn metadata(&self) -> Vec<TypeMetadata> {
         use std::alloc::Layout;
         vec![
@@ -196,6 +231,14 @@ impl<A: 'static, B: 'static> ComponentBundle for (A, B) {
                 layout: Layout::new::<B>(),
             },
         ]
+    }
+
+    fn read_entity(archetype: &'a Archetype, entity: Entity) -> Result<Self::Ref> {
+        let data_index = archetype.data_index_for_entity(entity);
+        Ok((
+            archetype.read_component::<A>(0, data_index, std::mem::size_of::<A>()),
+            archetype.read_component::<B>(1, data_index, std::mem::size_of::<B>()),
+        ))
     }
 }
 
@@ -211,11 +254,13 @@ fn align_value(value: usize, alignment: usize) -> usize {
 mod tests {
     use super::*;
 
+    #[derive(PartialEq, Debug)]
     struct Position {
         pub x: f32,
         pub y: f32,
     }
 
+    #[derive(PartialEq, Debug)]
     struct Velocity {
         pub x: f32,
         pub y: f32,
@@ -252,14 +297,25 @@ mod tests {
     #[test]
     fn ecs_entity() {
         let mut ecs = Ecs::new();
-        ecs.insert(vec![(
-            Position { x: 2.0, y: 1.0 },
-            Velocity { x: 1.5, y: 2.6 },
-        )])
-        .unwrap();
-        /*let (position, velocity) = ecs.entity::<(Position, Velocity)>(0);
-        assert_eq!(position, Position { x: 2.0, y: 1.0 });
-        assert_eq!(velocity, Velocity { x: 1.5, y: 2.6 });*/
+        let entity = ecs
+            .insert_one((Position { x: 2.0, y: 1.0 }, Velocity { x: 1.5, y: 2.6 }))
+            .unwrap();
+
+        let (position, velocity) = ecs.entity::<(Position, Velocity)>(entity).unwrap();
+        assert_eq!(position, &Position { x: 2.0, y: 1.0 });
+        assert_eq!(velocity, &Velocity { x: 1.5, y: 2.6 });
+
+        let second_entity = ecs
+            .insert_one((Position { x: 4.0, y: 1.0 }, Velocity { x: 1.2, y: 28.6 }))
+            .unwrap();
+
+        let (position, velocity) = ecs.entity::<(Position, Velocity)>(entity).unwrap();
+        assert_eq!(position, &Position { x: 2.0, y: 1.0 });
+        assert_eq!(velocity, &Velocity { x: 1.5, y: 2.6 });
+
+        let (position, velocity) = ecs.entity::<(Position, Velocity)>(second_entity).unwrap();
+        assert_eq!(position, &Position { x: 4.0, y: 1.0 });
+        assert_eq!(velocity, &Velocity { x: 1.2, y: 28.6 });
     }
 
     #[test]
