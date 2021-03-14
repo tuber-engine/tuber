@@ -221,56 +221,57 @@ pub trait ComponentBundle<'a> {
     fn read_entity_mut(archetype: &'a Archetype, entity: Entity) -> Result<Self::RefMut>;
 }
 
-impl<'a, A: 'static, B: 'static> ComponentBundle<'a> for (A, B) {
-    type Ref = (&'a A, &'a B);
-    type RefMut = (&'a mut A, &'a mut B);
+macro_rules! impl_component_bundle {
+    ($($type:ident => $index:tt,)*) => {
+        impl<'a, $($type: 'static),*> ComponentBundle<'a> for ($($type,)*) {
+            type Ref = ($(&'a $type,)*);
+            type RefMut = ($(&'a mut $type,)*);
 
-    fn type_ids() -> Box<[TypeId]> {
-        Box::new([TypeId::of::<A>(), TypeId::of::<B>()])
-    }
+            fn type_ids() -> Box<[TypeId]> {
+                Box::new([$(TypeId::of::<$type>(),)*])
+            }
 
-    fn write_into(&self, archetype: &mut Archetype, data_index: usize) {
-        archetype.write_component(
-            0,
-            data_index,
-            std::mem::size_of::<A>(),
-            &self.0 as *const A as *const u8,
-        );
-        archetype.write_component(
-            1,
-            data_index,
-            std::mem::size_of::<B>(),
-            &self.1 as *const B as *const u8,
-        );
-    }
-    fn metadata(&self) -> Vec<TypeMetadata> {
-        use std::alloc::Layout;
-        vec![
-            TypeMetadata {
-                layout: Layout::new::<A>(),
-            },
-            TypeMetadata {
-                layout: Layout::new::<B>(),
-            },
-        ]
-    }
+            fn write_into(&self, archetype: &mut Archetype, data_index: usize) {
+                $(archetype.write_component(
+                    $index,
+                    data_index,
+                    std::mem::size_of::<$type>(),
+                    (&self.$index) as *const $type as *const u8,
+                );)*
+            }
 
-    fn read_entity(archetype: &'a Archetype, entity: Entity) -> Result<Self::Ref> {
-        let data_index = archetype.data_index_for_entity(entity);
-        Ok((
-            archetype.read_component::<A>(0, data_index, std::mem::size_of::<A>()),
-            archetype.read_component::<B>(1, data_index, std::mem::size_of::<B>()),
-        ))
-    }
+            fn metadata(&self) -> Vec<TypeMetadata> {
+                use std::alloc::Layout;
+                vec![
+                    $(TypeMetadata {
+                        layout: Layout::new::<$type>()
+                    },)*
+                ]
+            }
 
-    fn read_entity_mut(archetype: &'a Archetype, entity: usize) -> Result<Self::RefMut> {
-        let data_index = archetype.data_index_for_entity(entity);
-        Ok((
-            archetype.read_component_mut::<A>(0, data_index, std::mem::size_of::<A>()),
-            archetype.read_component_mut::<B>(1, data_index, std::mem::size_of::<B>()),
-        ))
+            fn read_entity(archetype: &'a Archetype, entity: Entity) -> Result<Self::Ref> {
+                let data_index = archetype.data_index_for_entity(entity);
+                Ok((
+                    $(archetype.read_component::<$type>($index, data_index, std::mem::size_of::<$type>()),)*
+                ))
+            }
+
+            fn read_entity_mut(archetype: &'a Archetype, entity: Entity) -> Result<Self::RefMut> {
+                let data_index = archetype.data_index_for_entity(entity);
+                Ok((
+                    $(archetype.read_component_mut::<$type>($index, data_index, std::mem::size_of::<$type>()),)*
+                ))
+            }
+        }
     }
 }
+
+impl_component_bundle!(A => 0,);
+impl_component_bundle!(A => 0, B => 1,);
+impl_component_bundle!(A => 0, B => 1, C => 2,);
+impl_component_bundle!(A => 0, B => 1, C => 2, D => 3);
+impl_component_bundle!(A => 0, B => 1, C => 2, D => 3, E => 4);
+impl_component_bundle!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5);
 
 pub struct TypeMetadata {
     layout: std::alloc::Layout,
