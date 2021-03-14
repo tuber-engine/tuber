@@ -269,9 +269,9 @@ macro_rules! impl_component_bundle {
 impl_component_bundle!(A => 0,);
 impl_component_bundle!(A => 0, B => 1,);
 impl_component_bundle!(A => 0, B => 1, C => 2,);
-impl_component_bundle!(A => 0, B => 1, C => 2, D => 3);
-impl_component_bundle!(A => 0, B => 1, C => 2, D => 3, E => 4);
-impl_component_bundle!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5);
+impl_component_bundle!(A => 0, B => 1, C => 2, D => 3,);
+impl_component_bundle!(A => 0, B => 1, C => 2, D => 3, E => 4,);
+impl_component_bundle!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5,);
 
 pub struct TypeMetadata {
     layout: std::alloc::Layout,
