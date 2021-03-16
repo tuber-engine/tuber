@@ -1,5 +1,7 @@
 use crate::Entity;
+use std::any::TypeId;
 use std::collections::HashMap;
+use std::marker::PhantomData;
 use std::ptr::NonNull;
 
 pub struct Archetype {
@@ -22,6 +24,27 @@ impl Archetype {
             types_metadata,
             type_offsets: vec![0; length],
             stored_entities: HashMap::new(),
+        }
+    }
+
+    pub fn match_component<C: 'static>(&self) -> bool {
+        self.types_metadata
+            .iter()
+            .any(|m| m.type_id == TypeId::of::<C>())
+    }
+
+    pub fn fetch<C: 'static>(&self) -> ComponentIterator<C> {
+        let type_index = self
+            .types_metadata
+            .iter()
+            .position(|m| m.type_id == TypeId::of::<C>())
+            .unwrap();
+        let component_ptr = unsafe { self.data.as_ptr().add(self.type_offsets[type_index]) };
+        ComponentIterator {
+            ptr: component_ptr,
+            index: 0,
+            entity_count: self.entity_count,
+            phantom: PhantomData,
         }
     }
 
@@ -147,8 +170,31 @@ impl Drop for Archetype {
     }
 }
 
+pub struct ComponentIterator<'a, C> {
+    ptr: *const u8,
+    index: usize,
+    entity_count: usize,
+    phantom: PhantomData<&'a C>,
+}
+
+impl<'a, C> Iterator for ComponentIterator<'a, C> {
+    type Item = &'a C;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index >= self.entity_count {
+            return None;
+        }
+
+        let component =
+            unsafe { (self.ptr.add(self.index * std::mem::size_of::<C>()) as *const C).as_ref() };
+        self.index += 1;
+        component
+    }
+}
+
 pub struct TypeMetadata {
     pub(crate) layout: std::alloc::Layout,
+    pub(crate) type_id: TypeId,
 }
 
 fn align_value(value: usize, alignment: usize) -> usize {

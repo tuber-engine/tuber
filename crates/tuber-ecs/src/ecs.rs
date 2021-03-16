@@ -1,8 +1,9 @@
-use crate::archetype::Archetype;
+use crate::archetype::{Archetype, ComponentIterator};
 use crate::component_bundle::ComponentBundle;
 use crate::Entity;
 use std::any::TypeId;
 use std::collections::HashMap;
+use std::fmt::Debug;
 use tuber_core::Result;
 
 pub type ArchetypeStore = HashMap<Box<[TypeId]>, Archetype>;
@@ -64,6 +65,43 @@ impl Ecs {
     ) -> Result<<CB as ComponentBundle<'_>>::RefMut> {
         let archetype = self.archetype_store.get(&CB::type_ids()).unwrap();
         CB::read_entity_mut(archetype, entity)
+    }
+
+    pub fn fetch<C: 'static + Debug>(&self) -> impl Iterator<Item = &C> {
+        let mut iterators = vec![];
+        for archetype in self.archetype_store.values() {
+            if archetype.match_component::<C>() {
+                iterators.push(archetype.fetch::<C>());
+            }
+        }
+
+        FetchIterator {
+            iterators,
+            iterator_index: 0,
+        }
+    }
+}
+
+pub struct FetchIterator<'a, C> {
+    iterators: Vec<ComponentIterator<'a, C>>,
+    iterator_index: usize,
+}
+
+impl<'a, C: Debug> Iterator for FetchIterator<'a, C> {
+    type Item = &'a C;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.iterator_index >= self.iterators.len() {
+            return None;
+        }
+
+        let mut next = self.iterators[self.iterator_index].next();
+        while next.is_none() && self.iterator_index < self.iterators.len() - 1 {
+            self.iterator_index += 1;
+            next = self.iterators[self.iterator_index].next();
+        }
+
+        next
     }
 }
 
@@ -152,5 +190,25 @@ mod tests {
         let (position, velocity) = ecs.entity::<(Position, Velocity)>(entity).unwrap();
         assert_eq!(position, &mut Position { x: 0.0, y: 1.0 });
         assert_eq!(velocity, &mut Velocity { x: 1.5, y: 50.0 });
+    }
+
+    #[test]
+    fn ecs_fetch() {
+        let mut ecs = Ecs::new();
+        ecs.insert(vec![
+            (Position { x: 1.2, y: 2.3 }, Velocity { x: 3.4, y: 4.5 }),
+            (Position { x: 5.6, y: 6.7 }, Velocity { x: 7.8, y: 8.9 }),
+            (Position { x: 10.1, y: 10.2 }, Velocity { x: 10.3, y: 10.4 }),
+        ])
+        .unwrap();
+        ecs.insert(vec![
+            (Position { x: 12.2, y: 12.3 },),
+            (Position { x: 15.6, y: 16.7 },),
+        ])
+        .unwrap();
+        ecs.insert(vec![(Velocity { x: 112.2, y: 112.3 },)])
+            .unwrap();
+
+        assert_eq!(5, ecs.fetch::<Position>().count());
     }
 }

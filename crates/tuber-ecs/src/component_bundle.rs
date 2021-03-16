@@ -34,9 +34,11 @@ macro_rules! impl_component_bundle {
 
             fn metadata(&self) -> Vec<TypeMetadata> {
                 use std::alloc::Layout;
+                use std::any::TypeId;
                 vec![
                     $(TypeMetadata {
-                        layout: Layout::new::<$type>()
+                        layout: Layout::new::<$type>(),
+                        type_id: TypeId::of::<$type>()
                     },)*
                 ]
             }
