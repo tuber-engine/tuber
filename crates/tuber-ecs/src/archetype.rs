@@ -48,6 +48,21 @@ impl Archetype {
         }
     }
 
+    pub fn fetch_mut<C: 'static>(&self) -> ComponentMutIterator<C> {
+        let type_index = self
+            .types_metadata
+            .iter()
+            .position(|m| m.type_id == TypeId::of::<C>())
+            .unwrap();
+        let component_ptr = unsafe { self.data.as_ptr().add(self.type_offsets[type_index]) };
+        ComponentMutIterator {
+            ptr: component_ptr,
+            index: 0,
+            entity_count: self.entity_count,
+            phantom: PhantomData,
+        }
+    }
+
     pub fn allocate_storage_for_entity(&mut self, entity: Entity) -> usize {
         if self.entity_count == self.capacity {
             if self.capacity == 0 {
@@ -187,6 +202,28 @@ impl<'a, C> Iterator for ComponentIterator<'a, C> {
 
         let component =
             unsafe { (self.ptr.add(self.index * std::mem::size_of::<C>()) as *const C).as_ref() };
+        self.index += 1;
+        component
+    }
+}
+
+pub struct ComponentMutIterator<'a, C> {
+    ptr: *const u8,
+    index: usize,
+    entity_count: usize,
+    phantom: PhantomData<&'a C>,
+}
+
+impl<'a, C> Iterator for ComponentMutIterator<'a, C> {
+    type Item = &'a mut C;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index >= self.entity_count {
+            return None;
+        }
+
+        let component =
+            unsafe { (self.ptr.add(self.index * std::mem::size_of::<C>()) as *mut C).as_mut() };
         self.index += 1;
         component
     }
