@@ -231,7 +231,7 @@ mod tests {
         let mut ecs = Ecs::new();
         ecs.insert(vec![
             (Position { x: 1.2, y: 2.3 }, Velocity { x: 3.4, y: 4.5 }),
-            (Position { x: 5.6, y: 6.7 }, Velocity { x: 7.8, y: 8.9 }),
+            (Position { x: 25.6, y: 6.7 }, Velocity { x: 12.5, y: 8.9 }),
             (Position { x: 10.1, y: 10.2 }, Velocity { x: 10.3, y: 10.4 }),
         ])
         .unwrap();
