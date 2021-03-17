@@ -67,7 +67,7 @@ impl Ecs {
         CB::read_entity_mut(archetype, entity)
     }
 
-    pub fn fetch<C: 'static + Debug>(&self) -> FetchIterator<C> {
+    pub fn fetch<C: 'static + Debug>(&self) -> FetchIterator<ComponentIterator<C>> {
         let mut iterators = vec![];
         for archetype in self.archetype_store.values() {
             if archetype.match_component::<C>() {
@@ -81,7 +81,7 @@ impl Ecs {
         }
     }
 
-    pub fn fetch_mut<C: 'static + Debug>(&self) -> FetchMutIterator<C> {
+    pub fn fetch_mut<C: 'static + Debug>(&self) -> FetchIterator<ComponentMutIterator<C>> {
         let mut iterators = vec![];
         for archetype in self.archetype_store.values() {
             if archetype.match_component::<C>() {
@@ -89,43 +89,20 @@ impl Ecs {
             }
         }
 
-        FetchMutIterator {
+        FetchIterator {
             iterators,
             iterator_index: 0,
         }
     }
 }
 
-pub struct FetchIterator<'a, C> {
-    iterators: Vec<ComponentIterator<'a, C>>,
+pub struct FetchIterator<T: Iterator> {
+    iterators: Vec<T>,
     iterator_index: usize,
 }
 
-impl<'a, C: Debug> Iterator for FetchIterator<'a, C> {
-    type Item = &'a C;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.iterator_index >= self.iterators.len() {
-            return None;
-        }
-
-        let mut next = self.iterators[self.iterator_index].next();
-        while next.is_none() && self.iterator_index < self.iterators.len() - 1 {
-            self.iterator_index += 1;
-            next = self.iterators[self.iterator_index].next();
-        }
-
-        next
-    }
-}
-
-pub struct FetchMutIterator<'a, C> {
-    iterators: Vec<ComponentMutIterator<'a, C>>,
-    iterator_index: usize,
-}
-
-impl<'a, C: Debug> Iterator for FetchMutIterator<'a, C> {
-    type Item = &'a mut C;
+impl<T: Iterator> Iterator for FetchIterator<T> {
+    type Item = T::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.iterator_index >= self.iterators.len() {
