@@ -1,5 +1,4 @@
-pub mod archetype;
-pub mod component_bundle;
 pub mod ecs;
 
-pub type Entity = usize;
+/// The index of an entity
+pub type EntityIndex = usize;
