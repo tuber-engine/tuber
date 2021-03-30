@@ -110,17 +110,30 @@ pub trait Query<'a> {
 
     fn fetch(index: EntityIndex, components: &'a Components) -> Self::ResultType;
 }
-impl<'a, A, B> Query<'a> for (A, B)
-where
-    A: Accessor<'a>,
-    B: Accessor<'a>,
-{
-    type ResultType = (A::RefType, B::RefType);
 
-    fn fetch(index: usize, components: &'a Components) -> Self::ResultType {
-        (A::fetch(index, components), B::fetch(index, components))
+macro_rules! impl_query_tuples {
+    ($($t:tt,)*) => {
+        impl<'a, $($t,)*> Query<'a> for ($($t,)*)
+        where
+            $($t: Accessor<'a>,)*
+        {
+            type ResultType = ($($t::RefType,)*);
+
+            fn fetch(index: usize, components: &'a Components) -> Self::ResultType {
+                ($($t::fetch(index, components),)*)
+            }
+        }
     }
 }
+
+impl_query_tuples!(A,);
+impl_query_tuples!(A, B,);
+impl_query_tuples!(A, B, C,);
+impl_query_tuples!(A, B, C, D,);
+impl_query_tuples!(A, B, C, D, E,);
+impl_query_tuples!(A, B, C, D, E, F,);
+impl_query_tuples!(A, B, C, D, E, F, G,);
+impl_query_tuples!(A, B, C, D, E, F, G, H,);
 
 pub struct QueryIterator<'a, Q> {
     index: EntityIndex,
@@ -195,7 +208,7 @@ mod tests {
         ecs.insert((Position { x: 12.0, y: 1.0 }, Velocity { x: 2.0, y: 3.0 }));
         ecs.insert((Position { x: 4.0, y: 5.0 }, Velocity { x: 6.0, y: 7.0 }));
 
-        for (_, mut velocity) in ecs.query::<(R<Position>, W<Velocity>)>() {
+        for (mut velocity,) in ecs.query::<(W<Velocity>,)>() {
             velocity.x = 0.0;
         }
 
