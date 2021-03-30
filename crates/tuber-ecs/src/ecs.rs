@@ -54,9 +54,13 @@ macro_rules! impl_entity_definition_tuples {
     ($($t:tt => $i:tt,)*) => {
         impl<$($t: 'static,)*> EntityDefinition for ($($t,)*) {
             fn store_components(self, components: &mut Components) {
+                for component_storage in components.values_mut() {
+                    component_storage.push(None);
+                }
+
                 $(
-                    let component_storage = components.entry(TypeId::of::<$t>()).or_insert(vec![]);
-                    component_storage.push(Some(RefCell::new(Box::new(self.$i))));
+                    let component_storage = components.entry(TypeId::of::<$t>()).or_insert(vec![None]);
+                    *component_storage.last_mut().unwrap() = (Some(RefCell::new(Box::new(self.$i))));
                 )*
             }
         }
@@ -109,6 +113,7 @@ mod tests {
         let mut ecs = Ecs::new();
         ecs.insert((Position { x: 12.0, y: 1.0 }, Velocity { x: 2.0, y: 3.0 }));
         ecs.insert((Position { x: 4.0, y: 5.0 }, Velocity { x: 6.0, y: 7.0 }));
+        ecs.insert((Position { x: 4.0, y: 5.0 },));
 
         for (mut velocity,) in ecs.query::<(W<Velocity>,)>() {
             velocity.x = 0.0;
@@ -120,5 +125,8 @@ mod tests {
             assert_eq!(velocity.x, 0.0);
             assert_ne!(velocity.y, 0.0);
         }
+
+        assert_eq!(ecs.query::<(R<Position>,)>().count(), 3);
+        assert_eq!(ecs.query::<(R<Velocity>,)>().count(), 2);
     }
 }

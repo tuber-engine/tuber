@@ -1,12 +1,14 @@
 use crate::ecs::Components;
 use crate::EntityIndex;
 use accessors::Accessor;
+use std::any::TypeId;
 use std::marker::PhantomData;
 
 pub trait Query<'a> {
     type ResultType: 'a;
 
     fn fetch(index: EntityIndex, components: &'a Components) -> Self::ResultType;
+    fn type_ids() -> Vec<TypeId>;
 }
 
 macro_rules! impl_query_tuples {
@@ -19,6 +21,10 @@ macro_rules! impl_query_tuples {
 
             fn fetch(index: usize, components: &'a Components) -> Self::ResultType {
                 ($($t::fetch(index, components),)*)
+            }
+
+            fn type_ids() -> Vec<TypeId> {
+                vec![$($t::type_id(),)*]
             }
         }
     }
@@ -58,6 +64,15 @@ where
     type Item = Q::ResultType;
 
     fn next(&mut self) -> Option<Self::Item> {
+        // TODO: Consider optimizing this with a bitset
+        while self.index < self.entity_count
+            && !Q::type_ids()
+                .iter()
+                .all(|type_id| self.components[type_id][self.index].is_some())
+        {
+            self.index += 1;
+        }
+
         if self.index >= self.entity_count {
             return None;
         }
@@ -82,6 +97,7 @@ pub mod accessors {
         type RefType: 'a;
 
         fn fetch(index: usize, components: &'a Components) -> Self::RefType;
+        fn type_id() -> TypeId;
     }
     impl<'a, T: 'static> Accessor<'a> for R<T> {
         type RawType = T;
@@ -96,6 +112,10 @@ pub mod accessors {
                 |r| r.downcast_ref().unwrap(),
             )
         }
+
+        fn type_id() -> TypeId {
+            TypeId::of::<T>()
+        }
     }
     impl<'a, T: 'static> Accessor<'a> for W<T> {
         type RawType = T;
@@ -109,6 +129,10 @@ pub mod accessors {
                     .borrow_mut(),
                 |r| r.downcast_mut().unwrap(),
             )
+        }
+
+        fn type_id() -> TypeId {
+            TypeId::of::<T>()
         }
     }
 }
