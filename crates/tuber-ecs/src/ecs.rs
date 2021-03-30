@@ -50,14 +50,27 @@ pub trait EntityDefinition {
     fn store_components(self, components: &mut Components);
 }
 
-impl<A: 'static, B: 'static> EntityDefinition for (A, B) {
-    fn store_components(self, components: &mut Components) {
-        let component_storage = components.entry(TypeId::of::<A>()).or_insert(vec![]);
-        component_storage.push(Some(RefCell::new(Box::new(self.0))));
-        let component_storage = components.entry(TypeId::of::<B>()).or_insert(vec![]);
-        component_storage.push(Some(RefCell::new(Box::new(self.1))));
+macro_rules! impl_entity_definition_tuples {
+    ($($t:tt => $i:tt,)*) => {
+        impl<$($t: 'static,)*> EntityDefinition for ($($t,)*) {
+            fn store_components(self, components: &mut Components) {
+                $(
+                    let component_storage = components.entry(TypeId::of::<$t>()).or_insert(vec![]);
+                    component_storage.push(Some(RefCell::new(Box::new(self.$i))));
+                )*
+            }
+        }
     }
 }
+
+impl_entity_definition_tuples!(A => 0,);
+impl_entity_definition_tuples!(A => 0, B => 1,);
+impl_entity_definition_tuples!(A => 0, B => 1, C => 2,);
+impl_entity_definition_tuples!(A => 0, B => 1, C => 2, D => 3,);
+impl_entity_definition_tuples!(A => 0, B => 1, C => 2, D => 3, E => 4,);
+impl_entity_definition_tuples!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5,);
+impl_entity_definition_tuples!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6,);
+impl_entity_definition_tuples!(A => 0, B => 1, C => 2, D => 3, E => 4, F => 5, G => 6, H => 7,);
 
 #[cfg(test)]
 mod tests {
