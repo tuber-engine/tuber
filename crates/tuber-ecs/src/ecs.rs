@@ -192,18 +192,18 @@ mod tests {
     #[test]
     pub fn ecs_query() {
         let mut ecs = Ecs::new();
-        ecs.insert((Position { x: 0.0, y: 1.0 }, Velocity { x: 2.0, y: 3.0 }));
+        ecs.insert((Position { x: 12.0, y: 1.0 }, Velocity { x: 2.0, y: 3.0 }));
         ecs.insert((Position { x: 4.0, y: 5.0 }, Velocity { x: 6.0, y: 7.0 }));
 
-        for (mut position, mut velocity) in ecs.query::<(W<Position>, W<Velocity>)>() {
-            position.x = 0.0;
-            position.y = 0.0;
+        for (_, mut velocity) in ecs.query::<(R<Position>, W<Velocity>)>() {
             velocity.x = 0.0;
         }
 
         for (position, velocity) in ecs.query::<(R<Position>, R<Velocity>)>() {
-            dbg!(position);
-            dbg!(velocity);
+            assert_ne!(position.x, 0.0);
+            assert_ne!(position.y, 0.0);
+            assert_eq!(velocity.x, 0.0);
+            assert_ne!(velocity.y, 0.0);
         }
     }
 }
