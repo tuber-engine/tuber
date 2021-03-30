@@ -3,7 +3,7 @@
 use crate::ecs::accessors::Accessor;
 use crate::EntityIndex;
 use std::any::{Any, TypeId};
-use std::cell::{Ref, RefCell};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
@@ -11,8 +11,7 @@ type Components = HashMap<TypeId, Vec<Option<RefCell<Box<dyn Any>>>>>;
 
 mod accessors {
     use crate::ecs::Components;
-    use std::any::{Any, TypeId};
-    use std::borrow::Borrow;
+    use std::any::TypeId;
     use std::cell::{Ref, RefMut};
     use std::marker::PhantomData;
 
