@@ -1,3 +1,4 @@
+mod bitset;
 pub mod ecs;
 pub mod query;
 

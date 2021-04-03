@@ -1,3 +1,4 @@
+use crate::bitset::BitSet;
 use crate::ecs::Components;
 use crate::EntityIndex;
 use accessors::Accessor;
@@ -64,11 +65,10 @@ where
     type Item = Q::ResultType;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // TODO: Consider optimizing this with a bitset
         while self.index < self.entity_count
             && !Q::type_ids()
                 .iter()
-                .all(|type_id| self.components[type_id][self.index].is_some())
+                .all(|type_id| self.components[type_id].entities_bitset.bit(self.index))
         {
             self.index += 1;
         }
@@ -105,7 +105,7 @@ pub mod accessors {
 
         fn fetch(index: usize, components: &'a Components) -> Self::RefType {
             Ref::map(
-                components[&TypeId::of::<T>()][index]
+                components[&TypeId::of::<T>()].component_data[index]
                     .as_ref()
                     .unwrap()
                     .borrow(),
@@ -123,7 +123,7 @@ pub mod accessors {
 
         fn fetch(index: usize, components: &'a Components) -> Self::RefType {
             RefMut::map(
-                components[&TypeId::of::<T>()][index]
+                components[&TypeId::of::<T>()].component_data[index]
                     .as_ref()
                     .unwrap()
                     .borrow_mut(),

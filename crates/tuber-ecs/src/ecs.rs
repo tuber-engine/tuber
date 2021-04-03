@@ -6,7 +6,21 @@ use std::any::{Any, TypeId};
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-pub type Components = HashMap<TypeId, Vec<Option<RefCell<Box<dyn Any>>>>>;
+pub type Components = HashMap<TypeId, ComponentStore>;
+
+pub struct ComponentStore {
+    pub(crate) component_data: Vec<Option<RefCell<Box<dyn Any>>>>,
+    pub(crate) entities_bitset: u64,
+}
+
+impl ComponentStore {
+    pub fn new() -> Self {
+        Self {
+            component_data: vec![None],
+            entities_bitset: 0,
+        }
+    }
+}
 
 /// The Ecs itself, stores entities and runs systems
 pub struct Ecs {
@@ -29,8 +43,8 @@ impl Ecs {
     ///
     /// It returns the [`EntityIndex`] of the inserted entity.
     pub fn insert<ED: EntityDefinition>(&mut self, entity_definition: ED) -> EntityIndex {
-        entity_definition.store_components(&mut self.components);
         let index = self.next_index;
+        entity_definition.store_components(&mut self.components, index);
         self.next_index += 1;
         index
     }
@@ -47,20 +61,23 @@ impl Ecs {
 
 /// A type that can be used to define an entity
 pub trait EntityDefinition {
-    fn store_components(self, components: &mut Components);
+    fn store_components(self, components: &mut Components, index: usize);
 }
 
 macro_rules! impl_entity_definition_tuples {
     ($($t:tt => $i:tt,)*) => {
         impl<$($t: 'static,)*> EntityDefinition for ($($t,)*) {
-            fn store_components(self, components: &mut Components) {
+            fn store_components(self, components: &mut Components, index: usize) {
+                use crate::bitset::BitSet;
+
                 for component_storage in components.values_mut() {
-                    component_storage.push(None);
+                    component_storage.component_data.push(None);
                 }
 
                 $(
-                    let component_storage = components.entry(TypeId::of::<$t>()).or_insert(vec![None]);
-                    *component_storage.last_mut().unwrap() = (Some(RefCell::new(Box::new(self.$i))));
+                    let component_storage = components.entry(TypeId::of::<$t>()).or_insert(ComponentStore::new());
+                    *component_storage.component_data.last_mut().unwrap() = (Some(RefCell::new(Box::new(self.$i))));
+                    component_storage.entities_bitset.set_bit(index);
                 )*
             }
         }
