@@ -7,7 +7,7 @@ use winit::{
 
 pub struct WinitTuberRunner;
 impl TuberRunner for WinitTuberRunner {
-    fn run(&mut self, _engine: Engine) -> Result<()> {
+    fn run(&mut self, mut engine: Engine) -> Result<()> {
         let event_loop = EventLoop::new();
         let window = WindowBuilder::new().build(&event_loop).unwrap();
 
@@ -19,6 +19,9 @@ impl TuberRunner for WinitTuberRunner {
                     event: WindowEvent::CloseRequested,
                     window_id,
                 } if window_id == window.id() => *control_flow = ControlFlow::Exit,
+                Event::MainEventsCleared => {
+                    engine.step();
+                }
                 _ => (),
             }
         })
