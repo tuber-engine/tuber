@@ -16,5 +16,5 @@ path = "examples/basic-application/src/main.rs"
 
 [dependencies]
 tuber-core = { path = "crates/tuber-core", version = "0.1.0" }
-tuber-ecs = { path = "crates/tuber-ecs", version = "0.1.0" }
+tuber-graphics = { path = "crates/tuber-graphics", version = "0.1.0" }
 tuber-winit = { path = "crates/tuber-winit", version = "0.1.0" }

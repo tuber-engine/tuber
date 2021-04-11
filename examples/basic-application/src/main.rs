@@ -1,8 +1,9 @@
 use std::fmt;
 use std::fmt::{Display, Formatter};
-use tuber::ecs::Ecs;
-use tuber::query::accessors::{R, W};
-use tuber::system::SystemBundle;
+use tuber::ecs::ecs::Ecs;
+use tuber::ecs::query::accessors::{R, W};
+use tuber::ecs::system::SystemBundle;
+use tuber::Graphics;
 use tuber::*;
 
 struct Position {
@@ -52,6 +53,7 @@ fn main() -> tuber::Result<()> {
     let mut bundle = SystemBundle::new();
     bundle.add_system(move_system);
     bundle.add_system(log_position_system);
+    engine.add_system_bundle(Graphics::default_graphics_system_bundle());
     engine.add_system_bundle(bundle);
 
     let mut runner = WinitTuberRunner;

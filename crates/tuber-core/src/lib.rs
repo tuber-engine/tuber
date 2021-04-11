@@ -1,5 +1,6 @@
-use tuber_ecs::ecs::Ecs;
-use tuber_ecs::system::SystemBundle;
+use ecs::ecs::Ecs;
+use ecs::system::SystemBundle;
+pub use tuber_ecs as ecs;
 
 pub struct Engine {
     ecs: Ecs,
@@ -35,11 +36,11 @@ impl Engine {
     }
 }
 
+pub trait TuberRunner {
+    fn run(&mut self, engine: Engine) -> Result<()>;
+}
+
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
 pub enum Error {}
-
-pub trait TuberRunner {
-    fn run(&mut self, engine: Engine) -> Result<()>;
-}
