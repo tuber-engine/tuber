@@ -7,6 +7,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 pub type Components = HashMap<TypeId, ComponentStore>;
+pub type Resources = HashMap<TypeId, Box<dyn Any>>;
 
 pub struct ComponentStore {
     pub(crate) component_data: Vec<Option<RefCell<Box<dyn Any>>>>,
@@ -25,6 +26,7 @@ impl ComponentStore {
 /// The Ecs itself, stores entities and runs systems
 pub struct Ecs {
     components: Components,
+    shared_resources: Resources,
     next_index: EntityIndex,
 }
 
@@ -33,8 +35,29 @@ impl Ecs {
     pub fn new() -> Self {
         Self {
             components: HashMap::new(),
+            shared_resources: HashMap::new(),
             next_index: 0,
         }
+    }
+
+    pub fn insert_resource<T: 'static>(&mut self, resource: T) {
+        self.shared_resources
+            .insert(TypeId::of::<T>(), Box::new(resource));
+    }
+
+    pub fn resource<T: 'static>(&mut self) -> &T {
+        self.shared_resources[&TypeId::of::<T>()]
+            .downcast_ref()
+            .unwrap()
+    }
+
+    pub fn resource_mut<T: 'static>(&mut self) -> &mut T {
+        self.shared_resources
+            .get_mut(&TypeId::of::<T>())
+            .unwrap()
+            .as_mut()
+            .downcast_mut()
+            .unwrap()
     }
 
     /// Inserts an entity into the Ecs.

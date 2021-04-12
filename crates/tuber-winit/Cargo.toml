@@ -9,3 +9,5 @@ edition = "2018"
 [dependencies]
 winit = "0.24.0"
 tuber-core = { path = "../tuber-core", version = "0.1.0" }
+tuber-graphics = { path = "../tuber-graphics", version = "0.1.0" }
+raw-window-handle = "0.3.3"

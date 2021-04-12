@@ -8,3 +8,4 @@ edition = "2018"
 
 [dependencies]
 tuber-ecs = { path = "../tuber-ecs" }
+tuber-graphics = { path = "../../crates/tuber-graphics" }

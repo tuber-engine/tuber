@@ -3,7 +3,8 @@ use std::fmt::{Display, Formatter};
 use tuber::ecs::ecs::Ecs;
 use tuber::ecs::query::accessors::{R, W};
 use tuber::ecs::system::SystemBundle;
-use tuber::Graphics;
+use tuber::graphics::{Graphics, GraphicsAPI, SquareShape};
+use tuber::graphics_wgpu::GraphicsWGPU;
 use tuber::*;
 
 struct Position {
@@ -46,17 +47,20 @@ fn log_position_system(ecs: &mut Ecs) {
 
 fn main() -> tuber::Result<()> {
     let mut engine = Engine::new();
-    engine
-        .ecs()
-        .insert((Position { x: 5.0, y: 5.0 }, Velocity { x: 1.0, y: 0.5 }));
+    engine.ecs().insert((
+        Position { x: 5.0, y: 5.0 },
+        Velocity { x: 1.0, y: 0.5 },
+        SquareShape,
+    ));
+
+    let mut runner = WinitTuberRunner;
+    let mut graphics = Graphics::new(Box::new(GraphicsWGPU::new()));
 
     let mut bundle = SystemBundle::new();
     bundle.add_system(move_system);
     bundle.add_system(log_position_system);
-    engine.add_system_bundle(Graphics::default_graphics_system_bundle());
+    engine.add_system_bundle(graphics.default_system_bundle());
     engine.add_system_bundle(bundle);
 
-    let mut runner = WinitTuberRunner;
-
-    runner.run(engine)
+    runner.run(engine, graphics)
 }

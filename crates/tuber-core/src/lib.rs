@@ -1,6 +1,7 @@
 use ecs::ecs::Ecs;
 use ecs::system::SystemBundle;
 pub use tuber_ecs as ecs;
+use tuber_graphics::{Graphics, GraphicsAPI};
 
 pub struct Engine {
     ecs: Ecs,
@@ -37,7 +38,7 @@ impl Engine {
 }
 
 pub trait TuberRunner {
-    fn run(&mut self, engine: Engine) -> Result<()>;
+    fn run(&mut self, engine: Engine, graphics: Graphics) -> Result<()>;
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

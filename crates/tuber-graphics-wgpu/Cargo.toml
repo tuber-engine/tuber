@@ -8,4 +8,7 @@ edition = "2018"
 
 [dependencies]
 tuber-graphics = { path = "../tuber-graphics" }
+tuber-ecs = { path = "../tuber-ecs" }
 wgpu = "0.7.0"
+raw-window-handle = "0.3.3"
+futures = { version = "0.3.14", features = ["executor"] }
