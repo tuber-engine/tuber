@@ -1,4 +1,4 @@
-use crate::ecs::{Ecs, Resources};
+use crate::ecs::Ecs;
 
 pub struct SystemBundle {
     systems: Vec<Box<dyn FnMut(&mut Ecs)>>,
@@ -56,7 +56,6 @@ mod tests {
         struct Value(i32);
         struct OtherComponent;
 
-        let mut resources = None;
         let mut ecs = Ecs::new();
         ecs.insert((Value(12),));
         ecs.insert((Value(18), OtherComponent));
