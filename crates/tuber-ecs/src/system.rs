@@ -62,19 +62,19 @@ mod tests {
 
         let mut system_bundle = SystemBundle::new();
         system_bundle.add_system(|ecs: &mut Ecs| {
-            for (mut v,) in ecs.query::<(W<Value>,)>() {
+            for (_, (mut v,)) in ecs.query::<(W<Value>,)>() {
                 v.0 += 35;
             }
         });
         system_bundle.add_system(|ecs: &mut Ecs| {
-            for (mut v,) in ecs.query::<(W<Value>,)>() {
+            for (_, (mut v,)) in ecs.query::<(W<Value>,)>() {
                 v.0 -= 6;
             }
         });
 
         system_bundle.step(&mut ecs);
         let mut query_result = ecs.query::<(R<Value>,)>();
-        assert_eq!(*query_result.next().unwrap().0, Value(41));
-        assert_eq!(*query_result.next().unwrap().0, Value(47));
+        assert_eq!(*query_result.next().unwrap().1.0, Value(41));
+        assert_eq!(*query_result.next().unwrap().1.0, Value(47));
     }
 }

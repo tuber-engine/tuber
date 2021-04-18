@@ -155,11 +155,11 @@ mod tests {
         ecs.insert((Position { x: 4.0, y: 5.0 }, Velocity { x: 6.0, y: 7.0 }));
         ecs.insert((Position { x: 4.0, y: 5.0 },));
 
-        for (mut velocity,) in ecs.query::<(W<Velocity>,)>() {
+        for (_, (mut velocity,)) in ecs.query::<(W<Velocity>,)>() {
             velocity.x = 0.0;
         }
 
-        for (position, velocity) in ecs.query::<(R<Position>, R<Velocity>)>() {
+        for (_, (position, velocity)) in ecs.query::<(R<Position>, R<Velocity>)>() {
             assert_ne!(position.x, 0.0);
             assert_ne!(position.y, 0.0);
             assert_eq!(velocity.x, 0.0);
