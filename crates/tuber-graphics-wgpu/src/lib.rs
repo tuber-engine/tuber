@@ -1,5 +1,5 @@
 use futures;
-use tuber_ecs::ecs::{Ecs, Resources};
+use tuber_ecs::ecs::Ecs;
 use tuber_ecs::system::SystemBundle;
 use tuber_graphics::{Graphics, GraphicsAPI, Window, WindowSize};
 
@@ -77,7 +77,7 @@ impl GraphicsAPI for GraphicsWGPU {
     }
 
     fn render(&mut self) {
-        let mut state = self.wgpu_state.as_mut().expect("Graphics is uninitialized");
+        let state = self.wgpu_state.as_mut().expect("Graphics is uninitialized");
         let frame = state.swap_chain.get_current_frame().unwrap().output;
         let mut encoder = state
             .device
@@ -86,7 +86,7 @@ impl GraphicsAPI for GraphicsWGPU {
             });
 
         {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            let mut _render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
                 color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
                     attachment: &frame.view,

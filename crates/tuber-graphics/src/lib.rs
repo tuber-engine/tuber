@@ -1,5 +1,4 @@
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
-use tuber_ecs::ecs::Ecs;
 use tuber_ecs::system::SystemBundle;
 
 pub struct SquareShape;

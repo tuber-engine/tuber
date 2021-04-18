@@ -18,10 +18,10 @@ macro_rules! impl_query_tuples {
         where
             $($t: Accessor<'a>,)*
         {
-            type ResultType = ($($t::RefType,)*);
+            type ResultType = (EntityIndex, ($($t::RefType,)*));
 
-            fn fetch(index: usize, components: &'a Components) -> Self::ResultType {
-                ($($t::fetch(index, components),)*)
+            fn fetch(index: EntityIndex, components: &'a Components) -> Self::ResultType {
+                (index, ($($t::fetch(index, components),)*))
             }
 
             fn type_ids() -> Vec<TypeId> {

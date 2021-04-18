@@ -1,7 +1,7 @@
 use ecs::ecs::Ecs;
 use ecs::system::SystemBundle;
 pub use tuber_ecs as ecs;
-use tuber_graphics::{Graphics, GraphicsAPI};
+use tuber_graphics::Graphics;
 
 pub struct Engine {
     ecs: Ecs,
