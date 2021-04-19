@@ -2,6 +2,28 @@ use futures;
 use tuber_ecs::ecs::Ecs;
 use tuber_ecs::system::SystemBundle;
 use tuber_graphics::{Graphics, GraphicsAPI, Window, WindowSize};
+use wgpu::util::DeviceExt;
+
+const VERTICES: &[Vertex] = &[
+    Vertex {
+        position: [0.0, 0.0, 0.0],
+        color: [1.0, 0.0, 0.0],
+    },
+    Vertex {
+        position: [80.0, 0.0, 0.0],
+        color: [0.0, 1.0, 0.0],
+    },
+    Vertex {
+        position: [80.0, 80.0, 0.0],
+        color: [0.0, 0.0, 1.0],
+    },
+    Vertex {
+        position: [0.0, 80.0, 0.0],
+        color: [0.0, 0.0, 1.0],
+    },
+];
+
+const INDICES: &[u16] = &[0, 3, 1, 1, 3, 2];
 
 pub struct GraphicsWGPU {
     wgpu_state: Option<WGPUState>,
@@ -14,6 +36,14 @@ pub struct WGPUState {
     sc_desc: wgpu::SwapChainDescriptor,
     swap_chain: wgpu::SwapChain,
     window_size: WindowSize,
+    render_pipeline: wgpu::RenderPipeline,
+    vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
+    num_indices: u32,
+
+    uniforms: Uniforms,
+    uniform_buffer: wgpu::Buffer,
+    uniform_bind_group: wgpu::BindGroup,
 }
 
 impl GraphicsWGPU {
@@ -59,6 +89,96 @@ impl GraphicsAPI for GraphicsWGPU {
         };
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
 
+        let vertex_shader_module =
+            device.create_shader_module(&wgpu::include_spirv!("shader.vert.spv"));
+        let fragment_shader_module =
+            device.create_shader_module(&wgpu::include_spirv!("shader.frag.spv"));
+
+        let uniforms = Uniforms::new();
+        let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Uniform Buffer"),
+            contents: bytemuck::cast_slice(&[uniforms]),
+            usage: wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
+        });
+
+        let uniform_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStage::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+                label: Some("uniform_bind_group_layout"),
+            });
+
+        let uniform_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &uniform_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: uniform_buffer.as_entire_binding(),
+            }],
+            label: Some("uniform_bind_group"),
+        });
+
+        let render_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Render Pipeline Layout"),
+                bind_group_layouts: &[&uniform_bind_group_layout],
+                push_constant_ranges: &[],
+            });
+
+        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Render Pipeline"),
+            layout: Some(&render_pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &vertex_shader_module,
+                entry_point: "main",
+                buffers: &[Vertex::desc()],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &fragment_shader_module,
+                entry_point: "main",
+                targets: &[wgpu::ColorTargetState {
+                    format: sc_desc.format,
+                    alpha_blend: wgpu::BlendState::REPLACE,
+                    color_blend: wgpu::BlendState::REPLACE,
+                    write_mask: wgpu::ColorWrite::ALL,
+                }],
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: wgpu::CullMode::Back,
+                polygon_mode: wgpu::PolygonMode::Fill,
+            },
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState {
+                count: 1,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
+        });
+
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: bytemuck::cast_slice(VERTICES),
+            usage: wgpu::BufferUsage::VERTEX,
+        });
+
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Index Buffer"),
+            contents: bytemuck::cast_slice(INDICES),
+            usage: wgpu::BufferUsage::INDEX,
+        });
+
+        let num_indices = INDICES.len() as u32;
+
         self.wgpu_state = Some(WGPUState {
             surface,
             device,
@@ -66,6 +186,13 @@ impl GraphicsAPI for GraphicsWGPU {
             sc_desc,
             swap_chain,
             window_size,
+            render_pipeline,
+            vertex_buffer,
+            index_buffer,
+            num_indices,
+            uniforms,
+            uniform_buffer,
+            uniform_bind_group,
         });
     }
 
@@ -86,7 +213,7 @@ impl GraphicsAPI for GraphicsWGPU {
             });
 
         {
-            let mut _render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
                 color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
                     attachment: &frame.view,
@@ -103,6 +230,12 @@ impl GraphicsAPI for GraphicsWGPU {
                 }],
                 depth_stencil_attachment: None,
             });
+
+            render_pass.set_pipeline(&state.render_pipeline);
+            render_pass.set_bind_group(0, &state.uniform_bind_group, &[]);
+            render_pass.set_vertex_buffer(0, state.vertex_buffer.slice(..));
+            render_pass.set_index_buffer(state.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..state.num_indices, 0, 0..1);
         }
 
         state.queue.submit(std::iter::once(encoder.finish()));
@@ -112,4 +245,46 @@ impl GraphicsAPI for GraphicsWGPU {
 fn render(ecs: &mut Ecs) {
     let graphics = ecs.resource_mut::<Graphics>();
     graphics.render();
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+struct Vertex {
+    position: [f32; 3],
+    color: [f32; 3],
+}
+
+impl Vertex {
+    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
+            step_mode: wgpu::InputStepMode::Vertex,
+            attributes: &[
+                wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float3,
+                    offset: 0,
+                    shader_location: 0,
+                },
+                wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float3,
+                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
+                    shader_location: 1,
+                },
+            ],
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+struct Uniforms {
+    view_proj: [[f32; 4]; 4],
+}
+
+impl Uniforms {
+    fn new() -> Self {
+        Self {
+            view_proj: cgmath::ortho(0.0, 800.0, 600.0, 0.0, -100.0, 100.0).into(),
+        }
+    }
 }
