@@ -6,6 +6,7 @@ use tuber::ecs::query::accessors::{R, W};
 use tuber::ecs::system::SystemBundle;
 use tuber::graphics::{Graphics, GraphicsAPI, RectangleShape, Transform2D};
 use tuber::graphics_wgpu::GraphicsWGPU;
+use tuber::keyboard::Key;
 use tuber::*;
 
 const PADDLE_WIDTH: f32 = 20.0;
@@ -17,6 +18,7 @@ const BALL_INITIAL_POSITION: (f32, f32) = (395.0, 295.0);
 
 struct Ball;
 struct Paddle;
+struct Player;
 
 struct Velocity {
     x: f32,
@@ -36,6 +38,7 @@ fn main() -> tuber::Result<()> {
             translation: LEFT_PADDLE_POSITION,
         },
         Paddle,
+        Player,
     ));
 
     let _right_paddle = engine.ecs().insert((
@@ -59,8 +62,8 @@ fn main() -> tuber::Result<()> {
             color: (1.0, 1.0, 1.0),
         },
         Velocity {
-            x: rng.gen_range(-4.0..=4.0),
-            y: rng.gen_range(-4.0..=4.0),
+            x: rng.gen_range(-10.0..=-1.0),
+            y: rng.gen_range(-5.0..=5.0),
         },
         Transform2D {
             translation: BALL_INITIAL_POSITION,
@@ -72,7 +75,8 @@ fn main() -> tuber::Result<()> {
     let mut graphics = Graphics::new(Box::new(GraphicsWGPU::new()));
 
     let mut bundle = SystemBundle::new();
-    bundle.add_system(move_system);
+    bundle.add_system(move_ball_system);
+    bundle.add_system(move_paddle_system);
     bundle.add_system(collision_system);
     engine.add_system_bundle(graphics.default_system_bundle());
     engine.add_system_bundle(bundle);
@@ -80,7 +84,18 @@ fn main() -> tuber::Result<()> {
     runner.run(engine, graphics)
 }
 
-fn move_system(ecs: &mut Ecs) {
+fn move_paddle_system(ecs: &mut Ecs) {
+    let input_state = ecs.resource::<InputState>();
+    for (_id, (mut transform, _)) in ecs.query::<(W<Transform2D>, R<Player>)>() {
+        if input_state.is(Input::KeyDown(Key::Z)) {
+            transform.translation.1 -= 5.0;
+        } else if input_state.is(Input::KeyDown(Key::S)) {
+            transform.translation.1 += 5.0;
+        }
+    }
+}
+
+fn move_ball_system(ecs: &mut Ecs) {
     for (_id, (rectangle_shape, mut transform, mut velocity)) in
         ecs.query::<(R<RectangleShape>, W<Transform2D>, W<Velocity>)>()
     {

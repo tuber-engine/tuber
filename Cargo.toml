@@ -15,6 +15,10 @@ use-wgpu = ["tuber-graphics-wgpu"]
 name = "basic_application"
 path = "examples/basic-application/src/main.rs"
 
+[[bin]]
+name = "tennis"
+path = "examples/tennis/src/main.rs"
+
 [dependencies]
 tuber-core = { path = "crates/tuber-core", version = "0.1.0" }
 tuber-graphics = { path = "crates/tuber-graphics", version = "0.1.0" }
