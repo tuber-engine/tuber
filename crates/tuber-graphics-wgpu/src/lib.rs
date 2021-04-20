@@ -1,7 +1,8 @@
 use futures;
 use tuber_ecs::ecs::Ecs;
+use tuber_ecs::query::accessors::R;
 use tuber_ecs::system::SystemBundle;
-use tuber_graphics::{Graphics, GraphicsAPI, Window, WindowSize};
+use tuber_graphics::{Graphics, GraphicsAPI, RectangleShape, Transform2D, Window, WindowSize};
 use wgpu::util::DeviceExt;
 
 const VERTICES: &[Vertex] = &[
@@ -39,11 +40,12 @@ pub struct WGPUState {
     render_pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
-    num_indices: u32,
+    num_vertices: u32,
 
     uniforms: Uniforms,
     uniform_buffer: wgpu::Buffer,
     uniform_bind_group: wgpu::BindGroup,
+    pending_vertices: Vec<Vertex>,
 }
 
 impl GraphicsWGPU {
@@ -177,7 +179,7 @@ impl GraphicsAPI for GraphicsWGPU {
             usage: wgpu::BufferUsage::INDEX,
         });
 
-        let num_indices = INDICES.len() as u32;
+        let num_vertices = VERTICES.len() as u32;
 
         self.wgpu_state = Some(WGPUState {
             surface,
@@ -189,10 +191,11 @@ impl GraphicsAPI for GraphicsWGPU {
             render_pipeline,
             vertex_buffer,
             index_buffer,
-            num_indices,
+            num_vertices,
             uniforms,
             uniform_buffer,
             uniform_bind_group,
+            pending_vertices: vec![],
         });
     }
 
@@ -234,16 +237,105 @@ impl GraphicsAPI for GraphicsWGPU {
             render_pass.set_pipeline(&state.render_pipeline);
             render_pass.set_bind_group(0, &state.uniform_bind_group, &[]);
             render_pass.set_vertex_buffer(0, state.vertex_buffer.slice(..));
-            render_pass.set_index_buffer(state.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            render_pass.draw_indexed(0..state.num_indices, 0, 0..1);
+            render_pass.draw(0..state.num_vertices, 0..1);
         }
 
         state.queue.submit(std::iter::once(encoder.finish()));
     }
+
+    fn prepare_rectangle(&mut self, rectangle_shape: &RectangleShape, transform: &Transform2D) {
+        let mut state = self.wgpu_state.as_mut().expect("Graphics is uninitialized");
+        state.pending_vertices.push(Vertex {
+            position: [transform.translation.0, transform.translation.1, 0.0],
+            color: [
+                rectangle_shape.color.0,
+                rectangle_shape.color.1,
+                rectangle_shape.color.1,
+            ],
+        });
+        state.pending_vertices.push(Vertex {
+            position: [
+                transform.translation.0,
+                transform.translation.1 + rectangle_shape.height,
+                0.0,
+            ],
+            color: [
+                rectangle_shape.color.0,
+                rectangle_shape.color.1,
+                rectangle_shape.color.1,
+            ],
+        });
+        state.pending_vertices.push(Vertex {
+            position: [
+                transform.translation.0 + rectangle_shape.width,
+                transform.translation.1,
+                0.0,
+            ],
+            color: [
+                rectangle_shape.color.0,
+                rectangle_shape.color.1,
+                rectangle_shape.color.1,
+            ],
+        });
+        state.pending_vertices.push(Vertex {
+            position: [
+                transform.translation.0 + rectangle_shape.width,
+                transform.translation.1,
+                0.0,
+            ],
+            color: [
+                rectangle_shape.color.0,
+                rectangle_shape.color.1,
+                rectangle_shape.color.1,
+            ],
+        });
+        state.pending_vertices.push(Vertex {
+            position: [
+                transform.translation.0,
+                transform.translation.1 + rectangle_shape.height,
+                0.0,
+            ],
+            color: [
+                rectangle_shape.color.0,
+                rectangle_shape.color.1,
+                rectangle_shape.color.1,
+            ],
+        });
+        state.pending_vertices.push(Vertex {
+            position: [
+                transform.translation.0 + rectangle_shape.width,
+                transform.translation.1 + rectangle_shape.height,
+                0.0,
+            ],
+            color: [
+                rectangle_shape.color.0,
+                rectangle_shape.color.1,
+                rectangle_shape.color.1,
+            ],
+        });
+    }
+
+    fn finish_prepare_render(&mut self) {
+        let mut state = self.wgpu_state.as_mut().expect("Graphics is uninitialized");
+        let new_buffer = state
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Vertex Buffer"),
+                contents: bytemuck::cast_slice(state.pending_vertices.as_slice()),
+                usage: wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_SRC,
+            });
+        state.vertex_buffer = new_buffer;
+        state.num_vertices = state.pending_vertices.len() as u32;
+        state.pending_vertices.clear();
+    }
 }
 
 fn render(ecs: &mut Ecs) {
-    let graphics = ecs.resource_mut::<Graphics>();
+    let mut graphics = ecs.resource_mut::<Graphics>();
+    for (_, (rectangle_shape, transform)) in ecs.query::<(R<RectangleShape>, R<Transform2D>)>() {
+        graphics.prepare_rectangle(&rectangle_shape, &transform);
+    }
+    graphics.finish_prepare_render();
     graphics.render();
 }
 
