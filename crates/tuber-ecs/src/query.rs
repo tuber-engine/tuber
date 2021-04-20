@@ -66,9 +66,14 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.index < self.entity_count
-            && !Q::type_ids()
-                .iter()
-                .all(|type_id| self.components[type_id].entities_bitset.bit(self.index))
+            && !Q::type_ids().iter().all(|type_id| {
+                let component_store = self.components.get(&type_id);
+                if let Some(component_store) = component_store {
+                    return component_store.entities_bitset.bit(self.index);
+                }
+
+                false
+            })
         {
             self.index += 1;
         }
