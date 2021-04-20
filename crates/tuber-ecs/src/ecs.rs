@@ -3,11 +3,11 @@
 use crate::query::{Query, QueryIterator};
 use crate::EntityIndex;
 use std::any::{Any, TypeId};
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell, RefMut};
 use std::collections::HashMap;
 
 pub type Components = HashMap<TypeId, ComponentStore>;
-pub type Resources = HashMap<TypeId, Box<dyn Any>>;
+pub type Resources = HashMap<TypeId, RefCell<Box<dyn Any>>>;
 
 pub struct ComponentStore {
     pub(crate) component_data: Vec<Option<RefCell<Box<dyn Any>>>>,
@@ -42,22 +42,24 @@ impl Ecs {
 
     pub fn insert_resource<T: 'static>(&mut self, resource: T) {
         self.shared_resources
-            .insert(TypeId::of::<T>(), Box::new(resource));
+            .insert(TypeId::of::<T>(), RefCell::new(Box::new(resource)));
     }
 
-    pub fn resource<T: 'static>(&mut self) -> &T {
-        self.shared_resources[&TypeId::of::<T>()]
-            .downcast_ref()
-            .unwrap()
+    pub fn resource<T: 'static>(&self) -> Ref<T> {
+        Ref::map(self.shared_resources[&TypeId::of::<T>()].borrow(), |r| {
+            r.downcast_ref().unwrap()
+        })
     }
 
-    pub fn resource_mut<T: 'static>(&mut self) -> &mut T {
-        self.shared_resources
-            .get_mut(&TypeId::of::<T>())
-            .unwrap()
-            .as_mut()
-            .downcast_mut()
-            .unwrap()
+    pub fn resource_mut<T: 'static>(&self) -> RefMut<T> {
+        RefMut::map(
+            self.shared_resources
+                .get(&TypeId::of::<T>())
+                .as_ref()
+                .unwrap()
+                .borrow_mut(),
+            |r| r.downcast_mut().unwrap(),
+        )
     }
 
     /// Inserts an entity into the Ecs.
