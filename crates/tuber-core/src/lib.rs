@@ -3,6 +3,8 @@ use ecs::system::SystemBundle;
 pub use tuber_ecs as ecs;
 use tuber_graphics::Graphics;
 
+pub mod input;
+
 pub struct Engine {
     ecs: Ecs,
     system_bundles: Vec<SystemBundle>,
@@ -10,10 +12,17 @@ pub struct Engine {
 
 impl Engine {
     pub fn new() -> Engine {
+        let mut ecs = Ecs::new();
+        ecs.insert_resource(InputState::new());
         Self {
-            ecs: Ecs::new(),
+            ecs,
             system_bundles: vec![],
         }
+    }
+
+    pub fn handle_input(&mut self, input: input::Input) {
+        let mut input_state = self.ecs.resource_mut::<InputState>();
+        input_state.handle_input(input);
     }
 
     pub fn ecs(&mut self) -> &mut Ecs {
