@@ -20,4 +20,3 @@ tuber-core = { path = "crates/tuber-core", version = "0.1.0" }
 tuber-graphics = { path = "crates/tuber-graphics", version = "0.1.0" }
 tuber-graphics-wgpu = { path = "crates/tuber-graphics-wgpu", version = "0.1.0", optional = true }
 tuber-winit = { path = "crates/tuber-winit", version = "0.1.0" }
-rand = "0.8.3"
