@@ -21,6 +21,18 @@ impl ComponentStore {
             entities_bitset: 0,
         }
     }
+
+    pub fn with_size(size: usize) -> Self {
+        let mut component_data = vec![None];
+        for _ in 0..size {
+            component_data.push(None);
+        }
+
+        Self {
+            component_data,
+            entities_bitset: 0,
+        }
+    }
 }
 
 /// The Ecs itself, stores entities and runs systems
@@ -100,7 +112,7 @@ macro_rules! impl_entity_definition_tuples {
                 }
 
                 $(
-                    let component_storage = components.entry(TypeId::of::<$t>()).or_insert(ComponentStore::new());
+                    let component_storage = components.entry(TypeId::of::<$t>()).or_insert(ComponentStore::with_size(index));
                     *component_storage.component_data.last_mut().unwrap() = (Some(RefCell::new(Box::new(self.$i))));
                     component_storage.entities_bitset.set_bit(index);
                 )*
