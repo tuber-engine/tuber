@@ -1,0 +1,135 @@
+use std::collections::HashSet;
+use std::fmt;
+use std::fmt::{Display, Formatter};
+use tuber::ecs::ecs::Ecs;
+use tuber::ecs::query::accessors::{R, W};
+use tuber::ecs::system::SystemBundle;
+use tuber::graphics::{Graphics, GraphicsAPI, RectangleShape, Transform2D};
+use tuber::graphics_wgpu::GraphicsWGPU;
+use tuber::*;
+
+const PADDLE_WIDTH: f32 = 20.0;
+const PADDLE_HEIGHT: f32 = 100.0;
+const BALL_SIZE: f32 = 10.0;
+const LEFT_PADDLE_POSITION: (f32, f32) = (50.0, 250.0);
+const RIGHT_PADDLE_POSITION: (f32, f32) = (730.0, 250.0);
+const BALL_INITIAL_POSITION: (f32, f32) = (395.0, 295.0);
+
+struct Ball;
+struct Paddle;
+
+struct Velocity {
+    x: f32,
+    y: f32,
+}
+
+fn main() -> tuber::Result<()> {
+    let mut engine = Engine::new();
+
+    let _left_paddle = engine.ecs().insert((
+        RectangleShape {
+            width: PADDLE_WIDTH,
+            height: PADDLE_HEIGHT,
+            color: (1.0, 1.0, 1.0),
+        },
+        Transform2D {
+            translation: LEFT_PADDLE_POSITION,
+        },
+        Paddle,
+    ));
+
+    let _right_paddle = engine.ecs().insert((
+        RectangleShape {
+            width: PADDLE_WIDTH,
+            height: PADDLE_HEIGHT,
+            color: (1.0, 1.0, 1.0),
+        },
+        Transform2D {
+            translation: RIGHT_PADDLE_POSITION,
+        },
+        Paddle,
+    ));
+
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+    let _ball = engine.ecs().insert((
+        RectangleShape {
+            width: BALL_SIZE,
+            height: BALL_SIZE,
+            color: (1.0, 1.0, 1.0),
+        },
+        Velocity {
+            x: rng.gen_range(-4.0..=4.0),
+            y: rng.gen_range(-4.0..=4.0),
+        },
+        Transform2D {
+            translation: BALL_INITIAL_POSITION,
+        },
+        Ball,
+    ));
+
+    let mut runner = WinitTuberRunner;
+    let mut graphics = Graphics::new(Box::new(GraphicsWGPU::new()));
+
+    let mut bundle = SystemBundle::new();
+    bundle.add_system(move_system);
+    bundle.add_system(collision_system);
+    engine.add_system_bundle(graphics.default_system_bundle());
+    engine.add_system_bundle(bundle);
+
+    runner.run(engine, graphics)
+}
+
+fn move_system(ecs: &mut Ecs) {
+    for (_id, (rectangle_shape, mut transform, mut velocity)) in
+        ecs.query::<(R<RectangleShape>, W<Transform2D>, W<Velocity>)>()
+    {
+        if (transform.translation.0 + rectangle_shape.width >= 800.0)
+            || (transform.translation.0 <= 0.0)
+        {
+            velocity.x = -velocity.x;
+        }
+
+        if (transform.translation.1 + rectangle_shape.height >= 600.0)
+            || (transform.translation.1 <= 0.0)
+        {
+            velocity.y = -velocity.y;
+        }
+
+        transform.translation.0 += velocity.x;
+        transform.translation.1 += velocity.y;
+    }
+}
+
+fn collision_system(ecs: &mut Ecs) {
+    {
+        for (_ball_id, (mut ball_transform, mut velocity, _)) in
+            ecs.query::<(W<Transform2D>, W<Velocity>, R<Ball>)>()
+        {
+            let ball_position = ball_transform.translation;
+            for (_paddle_id, (paddle_transform, paddle_shape, _)) in
+                ecs.query::<(R<Transform2D>, R<RectangleShape>, R<Paddle>)>()
+            {
+                let paddle_position = paddle_transform.translation;
+
+                if ball_position.0 < paddle_position.0 + paddle_shape.width
+                    && ball_position.0 + BALL_SIZE > paddle_position.0
+                    && ball_position.1 > paddle_position.1
+                    && ball_position.1 + BALL_SIZE < paddle_position.1 + paddle_shape.height
+                {
+                    ball_transform.translation.0 -= velocity.x;
+                    velocity.x = -velocity.x;
+                }
+
+                if ball_position.1 < paddle_position.1 + paddle_shape.height
+                    && ball_position.1 + BALL_SIZE > paddle_position.1
+                    && ball_position.0 > paddle_position.0
+                    && ball_position.0 + BALL_SIZE < paddle_position.0 + paddle_shape.width
+                {
+                    ball_transform.translation.1 -= velocity.y;
+                    velocity.y = -velocity.y;
+                }
+            }
+        }
+    }
+}
