@@ -5,23 +5,24 @@ authors = ["Clément Sibille <clement.sibille@protonmail.com>"]
 edition = "2018"
 
 [workspace]
-members = ["examples/*", "crates/*"]
+members = ["crates/*"]
 
 [features]
 default = ["use-wgpu"]
 use-wgpu = ["tuber-graphics-wgpu"]
 
-[[bin]]
-name = "basic_application"
-path = "examples/basic-application/src/main.rs"
+[[example]]
+name = "basic-application"
 
-[[bin]]
+[[example]]
 name = "tennis"
-path = "examples/tennis/src/main.rs"
 
 [dependencies]
 tuber-core = { path = "crates/tuber-core", version = "0.1.0" }
 tuber-graphics = { path = "crates/tuber-graphics", version = "0.1.0" }
 tuber-graphics-wgpu = { path = "crates/tuber-graphics-wgpu", version = "0.1.0", optional = true }
 tuber-winit = { path = "crates/tuber-winit", version = "0.1.0" }
+
+[dev-dependencies]
 rand = "0.8.3"
+
