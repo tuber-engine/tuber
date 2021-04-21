@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 pub mod keyboard {
     #[derive(Debug, Copy, Clone)]
     pub enum Key {
