@@ -9,5 +9,8 @@ layout(set = 1, binding = 1) uniform sampler s_diffuse;
 
 
 void main() {
-    f_color = texture(sampler2D(t_diffuse, s_diffuse), v_tex_coords);
+    vec4 texColor = texture(sampler2D(t_diffuse, s_diffuse), v_tex_coords);
+    if(texColor.a < 0.1)
+        discard;
+    f_color = texColor;
 }

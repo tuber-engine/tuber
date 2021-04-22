@@ -9,7 +9,7 @@ use tuber_graphics::{
     Graphics, GraphicsAPI, GraphicsError, RectangleShape, Sprite, Transform2D, Window, WindowSize,
 };
 use wgpu::util::DeviceExt;
-use wgpu::{FragmentState, VertexState};
+use wgpu::{BlendFactor, BlendOperation, FragmentState, VertexState};
 
 mod texture;
 
@@ -226,7 +226,11 @@ impl GraphicsAPI for GraphicsWGPU {
                     entry_point: "main",
                     targets: &[wgpu::ColorTargetState {
                         format: sc_desc.format,
-                        alpha_blend: wgpu::BlendState::REPLACE,
+                        alpha_blend: wgpu::BlendState {
+                            src_factor: BlendFactor::SrcAlpha,
+                            dst_factor: BlendFactor::OneMinusSrcAlpha,
+                            operation: BlendOperation::Add,
+                        },
                         color_blend: wgpu::BlendState::REPLACE,
                         write_mask: wgpu::ColorWrite::ALL,
                     }],
