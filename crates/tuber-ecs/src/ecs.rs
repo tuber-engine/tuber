@@ -11,14 +11,14 @@ pub type Resources = HashMap<TypeId, RefCell<Box<dyn Any>>>;
 
 pub struct ComponentStore {
     pub(crate) component_data: Vec<Option<RefCell<Box<dyn Any>>>>,
-    pub(crate) entities_bitset: u64,
+    pub(crate) entities_bitset: [u64; 1024],
 }
 
 impl ComponentStore {
     pub fn new() -> Self {
         Self {
             component_data: vec![None],
-            entities_bitset: 0,
+            entities_bitset: [0u64; 1024],
         }
     }
 
@@ -30,7 +30,7 @@ impl ComponentStore {
 
         Self {
             component_data,
-            entities_bitset: 0,
+            entities_bitset: [0u64; 1024],
         }
     }
 }
