@@ -44,15 +44,24 @@ pub struct QueryIterator<'a, Q> {
     index: EntityIndex,
     entity_count: EntityIndex,
     components: &'a Components,
+    bitsets: Vec<[u64; 1024]>,
     marker: PhantomData<&'a Q>,
 }
 
-impl<'a, Q> QueryIterator<'a, Q> {
+impl<'a, 'b, Q: Query<'b>> QueryIterator<'a, Q> {
     pub fn new(entity_count: usize, components: &'a Components) -> Self {
+        let mut bitsets = vec![];
+        for type_id in Q::type_ids() {
+            if let Some(component_store) = components.get(&type_id) {
+                bitsets.push(component_store.entities_bitset.clone());
+            }
+        }
+
         Self {
             index: 0,
             entity_count,
             components,
+            bitsets,
             marker: PhantomData,
         }
     }
@@ -65,15 +74,12 @@ where
     type Item = Q::ResultType;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while self.index < self.entity_count
-            && !Q::type_ids().iter().all(|type_id| {
-                let component_store = self.components.get(&type_id);
-                if let Some(component_store) = component_store {
-                    return component_store.entities_bitset.bit(self.index);
-                }
+        if self.bitsets.len() != Q::type_ids().len() {
+            return None;
+        }
 
-                false
-            })
+        while self.index < self.entity_count
+            && self.bitsets.iter().any(|bitset| !bitset.bit(self.index))
         {
             self.index += 1;
         }
