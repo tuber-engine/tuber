@@ -1,5 +1,22 @@
+use crate::texture::TextureData;
+use image::ImageError;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use tuber_ecs::system::SystemBundle;
+
+#[derive(Debug)]
+pub enum GraphicsError {
+    TextureFileOpenFailure(std::io::Error),
+    ImageDecodeError(ImageError),
+}
+
+pub mod texture;
+pub struct TextureStore;
+
+pub struct Sprite {
+    pub width: f32,
+    pub height: f32,
+    pub texture: String,
+}
 
 pub struct RectangleShape {
     pub width: f32,
@@ -47,8 +64,29 @@ impl GraphicsAPI for Graphics {
         self.graphics_impl.prepare_rectangle(rectangle, transform);
     }
 
+    fn prepare_sprite(
+        &mut self,
+        sprite: &Sprite,
+        transform: &Transform2D,
+    ) -> Result<(), GraphicsError> {
+        if !self.graphics_impl.is_texture_in_memory(&sprite.texture) {
+            if let Ok(texture_data) = TextureData::from_file(&sprite.texture) {
+                self.graphics_impl.load_texture(texture_data);
+            }
+        }
+        self.graphics_impl.prepare_sprite(sprite, transform)?;
+        Ok(())
+    }
+
     fn finish_prepare_render(&mut self) {
         self.graphics_impl.finish_prepare_render();
+    }
+    fn is_texture_in_memory(&self, texture_identifier: &str) -> bool {
+        self.graphics_impl.is_texture_in_memory(texture_identifier)
+    }
+
+    fn load_texture(&mut self, texture_data: TextureData) {
+        self.graphics_impl.load_texture(texture_data)
     }
 }
 
@@ -57,5 +95,12 @@ pub trait GraphicsAPI {
     fn default_system_bundle(&mut self) -> SystemBundle;
     fn render(&mut self);
     fn prepare_rectangle(&mut self, rectangle: &RectangleShape, transform: &Transform2D);
+    fn prepare_sprite(
+        &mut self,
+        sprite: &Sprite,
+        transform: &Transform2D,
+    ) -> Result<(), GraphicsError>;
     fn finish_prepare_render(&mut self);
+    fn is_texture_in_memory(&self, texture_identifier: &str) -> bool;
+    fn load_texture(&mut self, texture_data: TextureData);
 }

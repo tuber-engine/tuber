@@ -37,9 +37,9 @@ impl ShaderData {
 
 fn main() -> BuildScriptResult<()> {
     let mut shader_paths = [
-        glob("./src/**/*.vert")?,
-        glob("./src/**/*.frag")?,
-        glob("./src/**/*.comp")?,
+        glob("./src/shaders/*.vert")?,
+        glob("./src/shaders/*.frag")?,
+        glob("./src/shaders/*.comp")?,
     ];
 
     let shaders = shader_paths

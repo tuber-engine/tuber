@@ -1,33 +1,25 @@
+use crate::texture::Texture;
 use futures;
+use std::collections::HashMap;
 use tuber_ecs::ecs::Ecs;
 use tuber_ecs::query::accessors::R;
 use tuber_ecs::system::SystemBundle;
-use tuber_graphics::{Graphics, GraphicsAPI, RectangleShape, Transform2D, Window, WindowSize};
+use tuber_graphics::texture::TextureData;
+use tuber_graphics::{
+    Graphics, GraphicsAPI, GraphicsError, RectangleShape, Sprite, Transform2D, Window, WindowSize,
+};
 use wgpu::util::DeviceExt;
+use wgpu::{FragmentState, VertexState};
 
-const VERTICES: &[Vertex] = &[
-    Vertex {
-        position: [0.0, 0.0, 0.0],
-        color: [1.0, 0.0, 0.0],
-    },
-    Vertex {
-        position: [80.0, 0.0, 0.0],
-        color: [0.0, 1.0, 0.0],
-    },
-    Vertex {
-        position: [80.0, 80.0, 0.0],
-        color: [0.0, 0.0, 1.0],
-    },
-    Vertex {
-        position: [0.0, 80.0, 0.0],
-        color: [0.0, 0.0, 1.0],
-    },
-];
+mod texture;
 
-const INDICES: &[u16] = &[0, 3, 1, 1, 3, 2];
+#[derive(Debug)]
+pub enum TuberGraphicsWGPUError {}
 
 pub struct GraphicsWGPU {
     wgpu_state: Option<WGPUState>,
+    textures: HashMap<String, Texture>,
+    pending_quads: Vec<Quad>,
 }
 
 pub struct WGPUState {
@@ -37,7 +29,9 @@ pub struct WGPUState {
     sc_desc: wgpu::SwapChainDescriptor,
     swap_chain: wgpu::SwapChain,
     window_size: WindowSize,
-    render_pipeline: wgpu::RenderPipeline,
+    colored_render_pipeline: wgpu::RenderPipeline,
+    default_texture: Texture,
+    textured_render_pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
     num_vertices: u32,
@@ -50,7 +44,11 @@ pub struct WGPUState {
 
 impl GraphicsWGPU {
     pub fn new() -> Self {
-        Self { wgpu_state: None }
+        Self {
+            wgpu_state: None,
+            textures: HashMap::new(),
+            pending_quads: vec![],
+        }
     }
 }
 
@@ -91,10 +89,14 @@ impl GraphicsAPI for GraphicsWGPU {
         };
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
 
-        let vertex_shader_module =
-            device.create_shader_module(&wgpu::include_spirv!("shader.vert.spv"));
-        let fragment_shader_module =
-            device.create_shader_module(&wgpu::include_spirv!("shader.frag.spv"));
+        let colored_vertex_shader_module =
+            device.create_shader_module(&wgpu::include_spirv!("shaders/colored_shader.vert.spv"));
+        let colored_fragment_shader_module =
+            device.create_shader_module(&wgpu::include_spirv!("shaders/colored_shader.frag.spv"));
+        let textured_vertex_shader_module =
+            device.create_shader_module(&wgpu::include_spirv!("shaders/textured_shader.vert.spv"));
+        let textured_fragment_shader_module =
+            device.create_shader_module(&wgpu::include_spirv!("shaders/textured_shader.frag.spv"));
 
         let uniforms = Uniforms::new();
         let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -127,59 +129,138 @@ impl GraphicsAPI for GraphicsWGPU {
             label: Some("uniform_bind_group"),
         });
 
-        let render_pipeline_layout =
+        let texture_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("texture_bind_group_layout"),
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStage::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            multisampled: false,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStage::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler {
+                            comparison: false,
+                            filtering: true,
+                        },
+                        count: None,
+                    },
+                ],
+            });
+        let default_texture_data = TextureData::from_bytes(
+            "default_texture.png",
+            include_bytes!("textures/default_texture.png"),
+        )
+        .unwrap();
+        let default_texture =
+            Texture::from_texture_data(&device, &queue, default_texture_data).unwrap();
+
+        let texture_bind_group = &default_texture.bind_group;
+
+        let colored_render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Render Pipeline Layout"),
+                label: Some("Colored Render Pipeline Layout"),
                 bind_group_layouts: &[&uniform_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Render Pipeline"),
-            layout: Some(&render_pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &vertex_shader_module,
-                entry_point: "main",
-                buffers: &[Vertex::desc()],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &fragment_shader_module,
-                entry_point: "main",
-                targets: &[wgpu::ColorTargetState {
-                    format: sc_desc.format,
-                    alpha_blend: wgpu::BlendState::REPLACE,
-                    color_blend: wgpu::BlendState::REPLACE,
-                    write_mask: wgpu::ColorWrite::ALL,
-                }],
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: wgpu::CullMode::Back,
-                polygon_mode: wgpu::PolygonMode::Fill,
-            },
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState {
-                count: 1,
-                mask: !0,
-                alpha_to_coverage_enabled: false,
-            },
-        });
+        let colored_render_pipeline =
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("Colored Render Pipeline"),
+                layout: Some(&colored_render_pipeline_layout),
+                vertex: VertexState {
+                    module: &colored_vertex_shader_module,
+                    entry_point: "main",
+                    buffers: &[Vertex::desc()],
+                },
+                fragment: Some(FragmentState {
+                    module: &colored_fragment_shader_module,
+                    entry_point: "main",
+                    targets: &[wgpu::ColorTargetState {
+                        format: sc_desc.format,
+                        alpha_blend: wgpu::BlendState::REPLACE,
+                        color_blend: wgpu::BlendState::REPLACE,
+                        write_mask: wgpu::ColorWrite::ALL,
+                    }],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    strip_index_format: None,
+                    front_face: wgpu::FrontFace::Ccw,
+                    cull_mode: wgpu::CullMode::Back,
+                    polygon_mode: wgpu::PolygonMode::Fill,
+                },
+                depth_stencil: None,
+                multisample: wgpu::MultisampleState {
+                    count: 1,
+                    mask: !0,
+                    alpha_to_coverage_enabled: false,
+                },
+            });
 
-        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let textured_render_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Render Pipeline Layout"),
+                bind_group_layouts: &[&uniform_bind_group_layout, &texture_bind_group_layout],
+                push_constant_ranges: &[],
+            });
+
+        let textured_render_pipeline =
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("Render Pipeline"),
+                layout: Some(&textured_render_pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &textured_vertex_shader_module,
+                    entry_point: "main",
+                    buffers: &[Vertex::desc()],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &textured_fragment_shader_module,
+                    entry_point: "main",
+                    targets: &[wgpu::ColorTargetState {
+                        format: sc_desc.format,
+                        alpha_blend: wgpu::BlendState::REPLACE,
+                        color_blend: wgpu::BlendState::REPLACE,
+                        write_mask: wgpu::ColorWrite::ALL,
+                    }],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    strip_index_format: None,
+                    front_face: wgpu::FrontFace::Ccw,
+                    cull_mode: wgpu::CullMode::Back,
+                    polygon_mode: wgpu::PolygonMode::Fill,
+                },
+                depth_stencil: None,
+                multisample: wgpu::MultisampleState {
+                    count: 1,
+                    mask: !0,
+                    alpha_to_coverage_enabled: false,
+                },
+            });
+
+        let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(VERTICES),
             usage: wgpu::BufferUsage::VERTEX,
+            size: 0,
+            mapped_at_creation: false,
         });
 
-        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let index_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(INDICES),
             usage: wgpu::BufferUsage::INDEX,
+            size: 0,
+            mapped_at_creation: false,
         });
 
-        let num_vertices = VERTICES.len() as u32;
+        let num_vertices = 0;
 
         self.wgpu_state = Some(WGPUState {
             surface,
@@ -188,7 +269,9 @@ impl GraphicsAPI for GraphicsWGPU {
             sc_desc,
             swap_chain,
             window_size,
-            render_pipeline,
+            colored_render_pipeline,
+            default_texture,
+            textured_render_pipeline,
             vertex_buffer,
             index_buffer,
             num_vertices,
@@ -201,7 +284,6 @@ impl GraphicsAPI for GraphicsWGPU {
 
     fn default_system_bundle(&mut self) -> SystemBundle {
         let mut bundle = SystemBundle::new();
-        bundle.add_system(|_: &mut Ecs| {});
         bundle.add_system(render);
         bundle
     }
@@ -234,99 +316,220 @@ impl GraphicsAPI for GraphicsWGPU {
                 depth_stencil_attachment: None,
             });
 
-            render_pass.set_pipeline(&state.render_pipeline);
-            render_pass.set_bind_group(0, &state.uniform_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, state.vertex_buffer.slice(..));
-            render_pass.draw(0..state.num_vertices, 0..1);
+            for (i, quad) in self.pending_quads.iter().enumerate() {
+                match &quad.texture {
+                    Some(texture) => {
+                        let bind_group = if let Some(texture) = &self.textures.get(texture) {
+                            &texture.bind_group
+                        } else {
+                            &state.default_texture.bind_group
+                        };
+
+                        render_pass.set_pipeline(&state.textured_render_pipeline);
+                        render_pass.set_bind_group(0, &state.uniform_bind_group, &[]);
+                        render_pass.set_bind_group(1, &bind_group, &[]);
+                    }
+                    None => {
+                        render_pass.set_pipeline(&state.colored_render_pipeline);
+                        render_pass.set_bind_group(0, &state.uniform_bind_group, &[]);
+                    }
+                }
+                render_pass.set_vertex_buffer(0, state.vertex_buffer.slice(..));
+                render_pass.draw(i as u32 * 6..i as u32 * 6 + 6, 0..1);
+            }
         }
 
         state.queue.submit(std::iter::once(encoder.finish()));
+        self.pending_quads.clear();
     }
 
     fn prepare_rectangle(&mut self, rectangle_shape: &RectangleShape, transform: &Transform2D) {
-        let mut state = self.wgpu_state.as_mut().expect("Graphics is uninitialized");
-        state.pending_vertices.push(Vertex {
-            position: [transform.translation.0, transform.translation.1, 0.0],
-            color: [
-                rectangle_shape.color.0,
-                rectangle_shape.color.1,
-                rectangle_shape.color.1,
+        self.pending_quads.push(Quad {
+            texture: None,
+            vertices: vec![
+                Vertex {
+                    position: [transform.translation.0, transform.translation.1, 0.0],
+                    color: [
+                        rectangle_shape.color.0,
+                        rectangle_shape.color.1,
+                        rectangle_shape.color.1,
+                    ],
+                    tex_coords: [0.0, 0.0],
+                },
+                Vertex {
+                    position: [
+                        transform.translation.0,
+                        transform.translation.1 + rectangle_shape.height,
+                        0.0,
+                    ],
+                    color: [
+                        rectangle_shape.color.0,
+                        rectangle_shape.color.1,
+                        rectangle_shape.color.1,
+                    ],
+                    tex_coords: [0.0, 1.0],
+                },
+                Vertex {
+                    position: [
+                        transform.translation.0 + rectangle_shape.width,
+                        transform.translation.1,
+                        0.0,
+                    ],
+                    color: [
+                        rectangle_shape.color.0,
+                        rectangle_shape.color.1,
+                        rectangle_shape.color.1,
+                    ],
+                    tex_coords: [1.0, 0.0],
+                },
+                Vertex {
+                    position: [
+                        transform.translation.0 + rectangle_shape.width,
+                        transform.translation.1,
+                        0.0,
+                    ],
+                    color: [
+                        rectangle_shape.color.0,
+                        rectangle_shape.color.1,
+                        rectangle_shape.color.1,
+                    ],
+                    tex_coords: [1.0, 0.0],
+                },
+                Vertex {
+                    position: [
+                        transform.translation.0,
+                        transform.translation.1 + rectangle_shape.height,
+                        0.0,
+                    ],
+                    color: [
+                        rectangle_shape.color.0,
+                        rectangle_shape.color.1,
+                        rectangle_shape.color.1,
+                    ],
+                    tex_coords: [0.0, 1.0],
+                },
+                Vertex {
+                    position: [
+                        transform.translation.0 + rectangle_shape.width,
+                        transform.translation.1 + rectangle_shape.height,
+                        0.0,
+                    ],
+                    color: [
+                        rectangle_shape.color.0,
+                        rectangle_shape.color.1,
+                        rectangle_shape.color.1,
+                    ],
+                    tex_coords: [1.0, 1.0],
+                },
             ],
         });
-        state.pending_vertices.push(Vertex {
-            position: [
-                transform.translation.0,
-                transform.translation.1 + rectangle_shape.height,
-                0.0,
-            ],
-            color: [
-                rectangle_shape.color.0,
-                rectangle_shape.color.1,
-                rectangle_shape.color.1,
+    }
+
+    fn prepare_sprite(
+        &mut self,
+        sprite: &Sprite,
+        transform: &Transform2D,
+    ) -> Result<(), GraphicsError> {
+        self.pending_quads.push(Quad {
+            texture: Some(sprite.texture.clone()),
+            vertices: vec![
+                Vertex {
+                    position: [transform.translation.0, transform.translation.1, 0.0],
+                    color: [1.0, 1.0, 1.0],
+                    tex_coords: [0.0, 0.0],
+                },
+                Vertex {
+                    position: [
+                        transform.translation.0,
+                        transform.translation.1 + sprite.height,
+                        0.0,
+                    ],
+                    color: [1.0, 1.0, 1.0],
+                    tex_coords: [0.0, 1.0],
+                },
+                Vertex {
+                    position: [
+                        transform.translation.0 + sprite.width,
+                        transform.translation.1,
+                        0.0,
+                    ],
+                    color: [1.0, 1.0, 1.0],
+                    tex_coords: [1.0, 0.0],
+                },
+                Vertex {
+                    position: [
+                        transform.translation.0 + sprite.width,
+                        transform.translation.1,
+                        0.0,
+                    ],
+                    color: [1.0, 1.0, 1.0],
+                    tex_coords: [1.0, 0.0],
+                },
+                Vertex {
+                    position: [
+                        transform.translation.0,
+                        transform.translation.1 + sprite.height,
+                        0.0,
+                    ],
+                    color: [1.0, 1.0, 1.0],
+                    tex_coords: [0.0, 1.0],
+                },
+                Vertex {
+                    position: [
+                        transform.translation.0 + sprite.width,
+                        transform.translation.1 + sprite.height,
+                        0.0,
+                    ],
+                    color: [1.0, 1.0, 1.0],
+                    tex_coords: [1.0, 1.0],
+                },
             ],
         });
-        state.pending_vertices.push(Vertex {
-            position: [
-                transform.translation.0 + rectangle_shape.width,
-                transform.translation.1,
-                0.0,
-            ],
-            color: [
-                rectangle_shape.color.0,
-                rectangle_shape.color.1,
-                rectangle_shape.color.1,
-            ],
-        });
-        state.pending_vertices.push(Vertex {
-            position: [
-                transform.translation.0 + rectangle_shape.width,
-                transform.translation.1,
-                0.0,
-            ],
-            color: [
-                rectangle_shape.color.0,
-                rectangle_shape.color.1,
-                rectangle_shape.color.1,
-            ],
-        });
-        state.pending_vertices.push(Vertex {
-            position: [
-                transform.translation.0,
-                transform.translation.1 + rectangle_shape.height,
-                0.0,
-            ],
-            color: [
-                rectangle_shape.color.0,
-                rectangle_shape.color.1,
-                rectangle_shape.color.1,
-            ],
-        });
-        state.pending_vertices.push(Vertex {
-            position: [
-                transform.translation.0 + rectangle_shape.width,
-                transform.translation.1 + rectangle_shape.height,
-                0.0,
-            ],
-            color: [
-                rectangle_shape.color.0,
-                rectangle_shape.color.1,
-                rectangle_shape.color.1,
-            ],
-        });
+        Ok(())
     }
 
     fn finish_prepare_render(&mut self) {
         let mut state = self.wgpu_state.as_mut().expect("Graphics is uninitialized");
-        let new_buffer = state
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Vertex Buffer"),
-                contents: bytemuck::cast_slice(state.pending_vertices.as_slice()),
-                usage: wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_SRC,
-            });
-        state.vertex_buffer = new_buffer;
-        state.num_vertices = state.pending_vertices.len() as u32;
-        state.pending_vertices.clear();
+        if self.pending_quads.len() > 0 {
+            let vertices: Vec<Vertex> = self
+                .pending_quads
+                .iter()
+                .map(|q| q.vertices.clone())
+                .flat_map(|v| v)
+                .collect();
+            let new_buffer = state
+                .device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("Vertex Buffer"),
+                    contents: bytemuck::cast_slice(&vertices),
+                    usage: wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_SRC,
+                });
+            state.vertex_buffer = new_buffer;
+        } else {
+            let new_buffer = state
+                .device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("Vertex Buffer"),
+                    contents: bytemuck::cast_slice(state.pending_vertices.as_slice()),
+                    usage: wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_SRC,
+                });
+            state.vertex_buffer = new_buffer;
+            state.num_vertices = state.pending_vertices.len() as u32;
+            state.pending_vertices.clear();
+        }
+    }
+
+    fn is_texture_in_memory(&self, texture_identifier: &str) -> bool {
+        let state = self.wgpu_state.as_ref().expect("Graphics is uninitialized");
+        self.textures.contains_key(texture_identifier)
+    }
+
+    fn load_texture(&mut self, texture_data: TextureData) {
+        let state = self.wgpu_state.as_ref().expect("Graphics is uninitialized");
+        let identifier = texture_data.identifier.clone();
+        let texture =
+            Texture::from_texture_data(&state.device, &state.queue, texture_data).unwrap();
+        self.textures.insert(identifier, texture);
     }
 }
 
@@ -335,8 +538,18 @@ fn render(ecs: &mut Ecs) {
     for (_, (rectangle_shape, transform)) in ecs.query::<(R<RectangleShape>, R<Transform2D>)>() {
         graphics.prepare_rectangle(&rectangle_shape, &transform);
     }
+    for (_, (sprite, transform)) in ecs.query::<(R<Sprite>, R<Transform2D>)>() {
+        if let Err(e) = graphics.prepare_sprite(&sprite, &transform) {
+            println!("{:?}", e);
+        }
+    }
     graphics.finish_prepare_render();
     graphics.render();
+}
+
+struct Quad {
+    texture: Option<String>,
+    vertices: Vec<Vertex>,
 }
 
 #[repr(C)]
@@ -344,6 +557,7 @@ fn render(ecs: &mut Ecs) {
 struct Vertex {
     position: [f32; 3],
     color: [f32; 3],
+    tex_coords: [f32; 2],
 }
 
 impl Vertex {
@@ -361,6 +575,11 @@ impl Vertex {
                     format: wgpu::VertexFormat::Float3,
                     offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
                     shader_location: 1,
+                },
+                wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float2,
+                    offset: std::mem::size_of::<[f32; 6]>() as wgpu::BufferAddress,
+                    shader_location: 2,
                 },
             ],
         }
