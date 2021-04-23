@@ -119,6 +119,18 @@ fn collision_system(ecs: &mut Ecs) {
             ecs.query::<(W<Transform2D>, W<Velocity>, R<Ball>)>()
         {
             let ball_position = ball_transform.translation;
+            if (ball_position.0 > (LEFT_PADDLE_POSITION.0 + PADDLE_WIDTH + BALL_SIZE)
+                || ball_position.0 < (LEFT_PADDLE_POSITION.0 - BALL_SIZE)
+                || ball_position.1 > (LEFT_PADDLE_POSITION.1 + PADDLE_HEIGHT + BALL_SIZE)
+                || ball_position.1 < (LEFT_PADDLE_POSITION.1 - BALL_SIZE))
+                && (ball_position.0 < (RIGHT_PADDLE_POSITION.0 - BALL_SIZE)
+                    || ball_position.0 > (RIGHT_PADDLE_POSITION.0 + PADDLE_WIDTH + BALL_SIZE)
+                    || ball_position.1 > (RIGHT_PADDLE_POSITION.1 + PADDLE_HEIGHT + BALL_SIZE)
+                    || ball_position.1 < (RIGHT_PADDLE_POSITION.1 - BALL_SIZE))
+            {
+                continue;
+            }
+
             for (_paddle_id, (paddle_transform, paddle_shape, _)) in
                 ecs.query::<(R<Transform2D>, R<RectangleShape>, R<Paddle>)>()
             {
