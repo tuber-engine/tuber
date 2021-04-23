@@ -3,7 +3,6 @@ use crate::ecs::Components;
 use crate::EntityIndex;
 use accessors::Accessor;
 use std::any::TypeId;
-use std::collections::HashSet;
 use std::marker::PhantomData;
 
 pub trait Query<'a> {
@@ -43,7 +42,6 @@ impl_query_tuples!(A, B, C, D, E, F, G, H,);
 
 pub struct QueryIterator<'a, Q> {
     index: EntityIndex,
-    entity_count: EntityIndex,
     components: &'a Components,
     matching_entities: Vec<EntityIndex>,
     marker: PhantomData<&'a Q>,
@@ -73,7 +71,6 @@ impl<'a, 'b, Q: Query<'b>> QueryIterator<'a, Q> {
 
         Self {
             index: 0,
-            entity_count,
             components,
             matching_entities,
             marker: PhantomData,

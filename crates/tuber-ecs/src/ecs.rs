@@ -1,5 +1,6 @@
 //! The ecs module defines the Ecs struct which is the main entry point of tuber-ecs
 
+use crate::bitset::BitSet;
 use crate::query::{Query, QueryIterator};
 use crate::EntityIndex;
 use std::any::{Any, TypeId};
@@ -9,9 +10,11 @@ use std::collections::HashMap;
 pub type Components = HashMap<TypeId, ComponentStore>;
 pub type Resources = HashMap<TypeId, RefCell<Box<dyn Any>>>;
 
+type EntitiesBitsetType = [u64; 1024];
+
 pub struct ComponentStore {
     pub(crate) component_data: Vec<Option<RefCell<Box<dyn Any>>>>,
-    pub(crate) entities_bitset: [u64; 1024],
+    pub(crate) entities_bitset: EntitiesBitsetType,
 }
 
 impl ComponentStore {
@@ -90,6 +93,30 @@ impl Ecs {
         QueryIterator::new(self.entity_count(), &self.components)
     }
 
+    pub fn query_one<'a, Q: Query<'a>>(&'a self) -> Option<Q::ResultType> {
+        let index = {
+            let type_ids = Q::type_ids();
+            let bitsets: Vec<&EntitiesBitsetType> = type_ids
+                .iter()
+                .filter_map(|type_id| Some(&self.components.get(&type_id)?.entities_bitset))
+                .collect();
+            if bitsets.len() != type_ids.len() {
+                return None;
+            }
+
+            let mut index = None;
+            for i in 0..self.entity_count() {
+                if bitsets.iter().all(|bitset| bitset.bit(i)) {
+                    index = Some(i);
+                    break;
+                }
+            }
+            index?
+        };
+
+        Some(Q::fetch(index, &self.components))
+    }
+
     /// Returns the entity count of the Ecs.
     pub fn entity_count(&self) -> usize {
         self.next_index
@@ -135,7 +162,7 @@ mod tests {
     use super::*;
     use crate::query::accessors::*;
 
-    #[derive(Debug)]
+    #[derive(Debug, PartialEq)]
     struct Position {
         x: f32,
         y: f32,
@@ -182,5 +209,17 @@ mod tests {
 
         assert_eq!(ecs.query::<(R<Position>,)>().count(), 3);
         assert_eq!(ecs.query::<(R<Velocity>,)>().count(), 2);
+    }
+
+    #[test]
+    pub fn ecs_query_one() {
+        let mut ecs = Ecs::new();
+        ecs.insert((Position { x: 12.0, y: 1.0 }, Velocity { x: 2.0, y: 3.0 }));
+
+        assert_eq!(ecs.query_one::<(R<Position>,)>().unwrap().0, 0);
+        assert_eq!(
+            (*(ecs.query_one::<(R<Position>,)>().unwrap().1).0),
+            Position { x: 12.0, y: 1.0 }
+        );
     }
 }
