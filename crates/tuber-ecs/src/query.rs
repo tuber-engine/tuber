@@ -3,6 +3,7 @@ use crate::ecs::Components;
 use crate::EntityIndex;
 use accessors::Accessor;
 use std::any::TypeId;
+use std::collections::HashSet;
 use std::marker::PhantomData;
 
 pub trait Query<'a> {
@@ -44,7 +45,7 @@ pub struct QueryIterator<'a, Q> {
     index: EntityIndex,
     entity_count: EntityIndex,
     components: &'a Components,
-    bitsets: Vec<[u64; 1024]>,
+    matching_entities: Vec<EntityIndex>,
     marker: PhantomData<&'a Q>,
 }
 
@@ -57,11 +58,24 @@ impl<'a, 'b, Q: Query<'b>> QueryIterator<'a, Q> {
             }
         }
 
+        let mut matching_entities = vec![];
+        if bitsets.len() == Q::type_ids().len() {
+            'outer: for i in 0..entity_count {
+                for bitset in bitsets.iter() {
+                    if !bitset.bit(i) {
+                        continue 'outer;
+                    }
+                }
+
+                matching_entities.push(i);
+            }
+        }
+
         Self {
             index: 0,
             entity_count,
             components,
-            bitsets,
+            matching_entities,
             marker: PhantomData,
         }
     }
@@ -74,23 +88,12 @@ where
     type Item = Q::ResultType;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.bitsets.len() != Q::type_ids().len() {
+        self.index = if let Some(index) = self.matching_entities.pop() {
+            index
+        } else {
             return None;
-        }
-
-        while self.index < self.entity_count
-            && self.bitsets.iter().any(|bitset| !bitset.bit(self.index))
-        {
-            self.index += 1;
-        }
-
-        if self.index >= self.entity_count {
-            return None;
-        }
-
-        let index = self.index;
-        self.index += 1;
-        Some(Q::fetch(index, self.components))
+        };
+        Some(Q::fetch(self.index, self.components))
     }
 }
 
