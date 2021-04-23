@@ -37,6 +37,7 @@ where
 mod tests {
     use super::*;
     use crate::query::accessors::{R, W};
+    use std::collections::HashSet;
 
     #[test]
     fn system_into_system() {
@@ -52,7 +53,7 @@ mod tests {
 
     #[test]
     fn system_bundle_step() {
-        #[derive(PartialEq, Debug)]
+        #[derive(PartialEq, Debug, Eq, Hash, Copy, Clone)]
         struct Value(i32);
         struct OtherComponent;
 
@@ -73,8 +74,9 @@ mod tests {
         });
 
         system_bundle.step(&mut ecs);
-        let mut query_result = ecs.query::<(R<Value>,)>();
-        assert_eq!(*query_result.next().unwrap().1.0, Value(41));
-        assert_eq!(*query_result.next().unwrap().1.0, Value(47));
+        let query_result = ecs.query::<(R<Value>,)>();
+        let result_set: HashSet<Value> = query_result.map(|result| *result.1 .0).collect();
+        assert!(result_set.contains(&Value(41)));
+        assert!(result_set.contains(&Value(47)));
     }
 }
