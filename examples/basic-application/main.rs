@@ -1,7 +1,5 @@
 use rand;
 use std::collections::HashSet;
-use std::fmt;
-use std::fmt::{Display, Formatter};
 use tuber::ecs::ecs::Ecs;
 use tuber::ecs::query::accessors::{R, W};
 use tuber::ecs::system::SystemBundle;
@@ -32,12 +30,6 @@ fn move_system(ecs: &mut Ecs) {
 
         transform.translation.0 += velocity.x;
         transform.translation.1 += velocity.y;
-    }
-}
-
-fn log_position_system(ecs: &mut Ecs) {
-    for (id, (transform_2d,)) in ecs.query::<(R<Transform2D>,)>() {
-        println!("{}: {:?}", id, transform_2d);
     }
 }
 

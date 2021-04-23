@@ -23,21 +23,21 @@ pub struct GraphicsWGPU {
 }
 
 pub struct WGPUState {
-    surface: wgpu::Surface,
+    _surface: wgpu::Surface,
     device: wgpu::Device,
     queue: wgpu::Queue,
-    sc_desc: wgpu::SwapChainDescriptor,
+    _sc_desc: wgpu::SwapChainDescriptor,
     swap_chain: wgpu::SwapChain,
-    window_size: WindowSize,
+    _window_size: WindowSize,
     colored_render_pipeline: wgpu::RenderPipeline,
     default_texture: Texture,
     textured_render_pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
-    index_buffer: wgpu::Buffer,
+    _index_buffer: wgpu::Buffer,
     num_vertices: u32,
 
-    uniforms: Uniforms,
-    uniform_buffer: wgpu::Buffer,
+    _uniforms: Uniforms,
+    _uniform_buffer: wgpu::Buffer,
     uniform_bind_group: wgpu::BindGroup,
     pending_vertices: Vec<Vertex>,
 }
@@ -162,8 +162,6 @@ impl GraphicsAPI for GraphicsWGPU {
         let default_texture =
             Texture::from_texture_data(&device, &queue, default_texture_data).unwrap();
 
-        let texture_bind_group = &default_texture.bind_group;
-
         let colored_render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Colored Render Pipeline Layout"),
@@ -267,20 +265,20 @@ impl GraphicsAPI for GraphicsWGPU {
         let num_vertices = 0;
 
         self.wgpu_state = Some(WGPUState {
-            surface,
+            _surface: surface,
             device,
             queue,
-            sc_desc,
+            _sc_desc: sc_desc,
             swap_chain,
-            window_size,
+            _window_size: window_size,
             colored_render_pipeline,
             default_texture,
             textured_render_pipeline,
             vertex_buffer,
-            index_buffer,
+            _index_buffer: index_buffer,
             num_vertices,
-            uniforms,
-            uniform_buffer,
+            _uniforms: uniforms,
+            _uniform_buffer: uniform_buffer,
             uniform_bind_group,
             pending_vertices: vec![],
         });
@@ -309,9 +307,9 @@ impl GraphicsAPI for GraphicsWGPU {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.2,
-                            b: 0.3,
+                            r: 0.0,
+                            g: 0.0,
+                            b: 0.0,
                             a: 1.0,
                         }),
                         store: true,
@@ -524,7 +522,6 @@ impl GraphicsAPI for GraphicsWGPU {
     }
 
     fn is_texture_in_memory(&self, texture_identifier: &str) -> bool {
-        let state = self.wgpu_state.as_ref().expect("Graphics is uninitialized");
         self.textures.contains_key(texture_identifier)
     }
 

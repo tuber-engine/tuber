@@ -19,7 +19,10 @@ pub struct WinitTuberRunner;
 impl TuberRunner for WinitTuberRunner {
     fn run(&mut self, mut engine: Engine, mut graphics: Graphics) -> TuberResult<()> {
         let event_loop = EventLoop::new();
-        let window = WindowBuilder::new().build(&event_loop).unwrap();
+        let window = WindowBuilder::new()
+            .with_title("tuber")
+            .build(&event_loop)
+            .unwrap();
         graphics.initialize(
             Window(Box::new(
                 &window as &dyn raw_window_handle::HasRawWindowHandle,
