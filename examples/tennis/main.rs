@@ -6,11 +6,12 @@ use tuber::graphics_wgpu::GraphicsWGPU;
 use tuber::keyboard::Key;
 use tuber::*;
 
+const BALL_COUNT: usize = 1;
 const PADDLE_WIDTH: f32 = 20.0;
 const PADDLE_HEIGHT: f32 = 100.0;
 const BALL_SIZE: f32 = 10.0;
-const LEFT_PADDLE_POSITION: (f32, f32) = (50.0, 250.0);
-const RIGHT_PADDLE_POSITION: (f32, f32) = (730.0, 250.0);
+const LEFT_PADDLE_INITIAL_POSITION: (f32, f32) = (50.0, 250.0);
+const RIGHT_PADDLE_INITIAL_POSITION: (f32, f32) = (730.0, 250.0);
 const BALL_INITIAL_POSITION: (f32, f32) = (395.0, 295.0);
 
 struct Ball;
@@ -32,7 +33,7 @@ fn main() -> tuber::Result<()> {
             color: (1.0, 1.0, 1.0),
         },
         Transform2D {
-            translation: LEFT_PADDLE_POSITION,
+            translation: LEFT_PADDLE_INITIAL_POSITION,
         },
         Paddle,
         Player,
@@ -45,28 +46,34 @@ fn main() -> tuber::Result<()> {
             color: (1.0, 1.0, 1.0),
         },
         Transform2D {
-            translation: RIGHT_PADDLE_POSITION,
+            translation: RIGHT_PADDLE_INITIAL_POSITION,
         },
         Paddle,
     ));
 
     use rand::Rng;
     let mut rng = rand::thread_rng();
-    let _ball = engine.ecs().insert((
-        RectangleShape {
-            width: BALL_SIZE,
-            height: BALL_SIZE,
-            color: (1.0, 1.0, 1.0),
-        },
-        Velocity {
-            x: rng.gen_range(-10.0..=-1.0),
-            y: rng.gen_range(-5.0..=5.0),
-        },
-        Transform2D {
-            translation: BALL_INITIAL_POSITION,
-        },
-        Ball,
-    ));
+    for _ in 0..BALL_COUNT {
+        let _ball = engine.ecs().insert((
+            RectangleShape {
+                width: BALL_SIZE,
+                height: BALL_SIZE,
+                color: (
+                    rng.gen_range(0.0..=1.0),
+                    rng.gen_range(0.0..=1.0),
+                    rng.gen_range(0.0..=1.0),
+                ),
+            },
+            Velocity {
+                x: rng.gen_range(-10.0..=-5.0),
+                y: rng.gen_range(-10.0..=5.0),
+            },
+            Transform2D {
+                translation: BALL_INITIAL_POSITION,
+            },
+            Ball,
+        ));
+    }
 
     let mut runner = WinitTuberRunner;
     let mut graphics = Graphics::new(Box::new(GraphicsWGPU::new()));
@@ -115,33 +122,35 @@ fn move_ball_system(ecs: &mut Ecs) {
 
 fn collision_system(ecs: &mut Ecs) {
     {
-        for (_ball_id, (mut ball_transform, mut velocity, _)) in
-            ecs.query::<(W<Transform2D>, W<Velocity>, R<Ball>)>()
+        for (_paddle_id, (paddle_transform, paddle_shape, _)) in
+            ecs.query::<(R<Transform2D>, R<RectangleShape>, R<Paddle>)>()
         {
-            let ball_position = ball_transform.translation;
-            if (ball_position.0 > (LEFT_PADDLE_POSITION.0 + PADDLE_WIDTH + BALL_SIZE)
-                || ball_position.0 < (LEFT_PADDLE_POSITION.0 - BALL_SIZE)
-                || ball_position.1 > (LEFT_PADDLE_POSITION.1 + PADDLE_HEIGHT + BALL_SIZE)
-                || ball_position.1 < (LEFT_PADDLE_POSITION.1 - BALL_SIZE))
-                && (ball_position.0 < (RIGHT_PADDLE_POSITION.0 - BALL_SIZE)
-                    || ball_position.0 > (RIGHT_PADDLE_POSITION.0 + PADDLE_WIDTH + BALL_SIZE)
-                    || ball_position.1 > (RIGHT_PADDLE_POSITION.1 + PADDLE_HEIGHT + BALL_SIZE)
-                    || ball_position.1 < (RIGHT_PADDLE_POSITION.1 - BALL_SIZE))
+            let paddle_position = paddle_transform.translation;
+            for (_ball_id, (mut ball_transform, mut velocity, _)) in
+                ecs.query::<(W<Transform2D>, W<Velocity>, R<Ball>)>()
             {
-                continue;
-            }
+                let ball_position = ball_transform.translation;
 
-            for (_paddle_id, (paddle_transform, paddle_shape, _)) in
-                ecs.query::<(R<Transform2D>, R<RectangleShape>, R<Paddle>)>()
-            {
-                let paddle_position = paddle_transform.translation;
+                if !ball_is_close_to_paddle(
+                    ball_position,
+                    BALL_SIZE,
+                    paddle_transform.translation,
+                    PADDLE_WIDTH,
+                    PADDLE_HEIGHT,
+                ) {
+                    continue;
+                }
 
                 if ball_position.0 < paddle_position.0 + paddle_shape.width
                     && ball_position.0 + BALL_SIZE > paddle_position.0
                     && ball_position.1 > paddle_position.1
                     && ball_position.1 + BALL_SIZE < paddle_position.1 + paddle_shape.height
                 {
-                    ball_transform.translation.0 -= velocity.x;
+                    ball_transform.translation.0 += if velocity.x >= 0.0 {
+                        -(ball_position.0 + BALL_SIZE - paddle_position.0)
+                    } else {
+                        paddle_position.0 + paddle_shape.width - ball_position.0
+                    };
                     velocity.x = -velocity.x;
                 }
 
@@ -150,10 +159,27 @@ fn collision_system(ecs: &mut Ecs) {
                     && ball_position.0 > paddle_position.0
                     && ball_position.0 + BALL_SIZE < paddle_position.0 + paddle_shape.width
                 {
-                    ball_transform.translation.1 -= velocity.y;
+                    ball_transform.translation.1 += if velocity.y >= 0.0 {
+                        -(ball_position.1 + BALL_SIZE - paddle_position.1)
+                    } else {
+                        paddle_position.1 + paddle_shape.height - ball_position.1
+                    };
                     velocity.y = -velocity.y;
                 }
             }
         }
     }
+}
+
+fn ball_is_close_to_paddle(
+    ball_position: (f32, f32),
+    ball_size: f32,
+    paddle_position: (f32, f32),
+    paddle_width: f32,
+    paddle_height: f32,
+) -> bool {
+    ball_position.0 + ball_size > paddle_position.0 - ball_size
+        && ball_position.0 < paddle_position.0 + paddle_width + ball_size
+        && ball_position.1 + ball_size > paddle_position.1 - ball_size
+        && ball_position.1 < paddle_position.1 + paddle_height + ball_size
 }
