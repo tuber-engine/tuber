@@ -6,7 +6,7 @@ use tuber::graphics_wgpu::GraphicsWGPU;
 use tuber::keyboard::Key;
 use tuber::*;
 
-const BALL_COUNT: usize = 1;
+const BALL_COUNT: usize = 20000;
 const PADDLE_WIDTH: f32 = 20.0;
 const PADDLE_HEIGHT: f32 = 100.0;
 const BALL_SIZE: f32 = 10.0;
@@ -34,6 +34,7 @@ fn main() -> tuber::Result<()> {
         },
         Transform2D {
             translation: LEFT_PADDLE_INITIAL_POSITION,
+            ..Default::default()
         },
         Paddle,
         Player,
@@ -47,6 +48,7 @@ fn main() -> tuber::Result<()> {
         },
         Transform2D {
             translation: RIGHT_PADDLE_INITIAL_POSITION,
+            ..Default::default()
         },
         Paddle,
     ));
@@ -70,6 +72,8 @@ fn main() -> tuber::Result<()> {
             },
             Transform2D {
                 translation: BALL_INITIAL_POSITION,
+                rotation_center: (BALL_INITIAL_POSITION.0 / 2.0, BALL_INITIAL_POSITION.1 / 2.0),
+                ..Default::default()
             },
             Ball,
         ));
@@ -117,6 +121,7 @@ fn move_ball_system(ecs: &mut Ecs) {
 
         transform.translation.0 += velocity.x;
         transform.translation.1 += velocity.y;
+        transform.angle += 1.0;
     }
 }
 

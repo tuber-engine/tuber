@@ -30,7 +30,6 @@ pub struct WGPUState {
     _sc_desc: wgpu::SwapChainDescriptor,
     swap_chain: wgpu::SwapChain,
     _window_size: WindowSize,
-    colored_render_pipeline: wgpu::RenderPipeline,
     default_texture: Texture,
     textured_render_pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
@@ -88,10 +87,6 @@ impl GraphicsAPI for GraphicsWGPU {
 
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
 
-        let colored_vertex_shader_module =
-            device.create_shader_module(&wgpu::include_spirv!("shaders/colored_shader.vert.spv"));
-        let colored_fragment_shader_module =
-            device.create_shader_module(&wgpu::include_spirv!("shaders/colored_shader.frag.spv"));
         let textured_vertex_shader_module =
             device.create_shader_module(&wgpu::include_spirv!("shaders/textured_shader.vert.spv"));
         let textured_fragment_shader_module =
@@ -144,47 +139,6 @@ impl GraphicsAPI for GraphicsWGPU {
         .unwrap();
         let default_texture =
             Texture::from_texture_data(&device, &queue, default_texture_data).unwrap();
-
-        let colored_render_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Colored Render Pipeline Layout"),
-                bind_group_layouts: &[&uniform_bind_group_layout],
-                push_constant_ranges: &[],
-            });
-
-        let colored_render_pipeline =
-            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("Colored Render Pipeline"),
-                layout: Some(&colored_render_pipeline_layout),
-                vertex: VertexState {
-                    module: &colored_vertex_shader_module,
-                    entry_point: "main",
-                    buffers: &[Vertex::desc()],
-                },
-                fragment: Some(FragmentState {
-                    module: &colored_fragment_shader_module,
-                    entry_point: "main",
-                    targets: &[wgpu::ColorTargetState {
-                        format: sc_desc.format.clone(),
-                        alpha_blend: wgpu::BlendState::REPLACE,
-                        color_blend: wgpu::BlendState::REPLACE,
-                        write_mask: wgpu::ColorWrite::ALL,
-                    }],
-                }),
-                primitive: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleList,
-                    strip_index_format: None,
-                    front_face: wgpu::FrontFace::Ccw,
-                    cull_mode: wgpu::CullMode::Back,
-                    polygon_mode: wgpu::PolygonMode::Fill,
-                },
-                depth_stencil: None,
-                multisample: wgpu::MultisampleState {
-                    count: 1,
-                    mask: !0,
-                    alpha_to_coverage_enabled: false,
-                },
-            });
 
         let textured_render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -256,7 +210,6 @@ impl GraphicsAPI for GraphicsWGPU {
             _sc_desc: sc_desc,
             swap_chain,
             _window_size: window_size,
-            colored_render_pipeline,
             default_texture,
             textured_render_pipeline,
             vertex_buffer,

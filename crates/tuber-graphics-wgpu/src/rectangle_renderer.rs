@@ -1,16 +1,23 @@
 use crate::Vertex;
+use cgmath::{vec3, Deg, Vector2};
 use tuber_graphics::{RectangleShape, Transform2D};
-use wgpu::util::DeviceExt;
+use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{BufferDescriptor, Device, FragmentState, RenderPass, TextureFormat};
 
-const VERTEX_BUFFER_SIZE: u64 = 1024u64 * std::mem::size_of::<Vertex>() as u64;
+const MAX_INSTANCE_COUNT: u64 = 100_000;
+const VERTEX_COUNT_PER_INSTANCE: u64 = 6;
+const INSTANCE_BUFFER_SIZE: u64 = MAX_INSTANCE_COUNT * std::mem::size_of::<InstanceRaw>() as u64;
+const VERTEX_BUFFER_SIZE: u64 =
+    MAX_INSTANCE_COUNT * VERTEX_COUNT_PER_INSTANCE * std::mem::size_of::<Vertex>() as u64;
 
 pub(crate) struct RectangleRenderer {
     pipeline: wgpu::RenderPipeline,
     uniform_bind_group: wgpu::BindGroup,
     uniform_buffer: wgpu::Buffer,
     vertex_buffer: wgpu::Buffer,
-    vertex_count: u32,
+    instance_buffer: wgpu::Buffer,
+    instances: Vec<Instance>,
+    vertex_count: usize,
 }
 impl RectangleRenderer {
     pub fn new(device: &Device, texture_format: TextureFormat) -> Self {
@@ -62,7 +69,7 @@ impl RectangleRenderer {
             vertex: wgpu::VertexState {
                 module: &colored_vertex_shader_module,
                 entry_point: "main",
-                buffers: &[Vertex::desc()],
+                buffers: &[Vertex::desc(), InstanceRaw::desc()],
             },
             fragment: Some(FragmentState {
                 module: &colored_fragment_shader_module,
@@ -89,9 +96,46 @@ impl RectangleRenderer {
             },
         });
 
-        let vertex_buffer = device.create_buffer(&BufferDescriptor {
+        let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: Some("rectangle_renderer_vertex_buffer"),
-            size: VERTEX_BUFFER_SIZE,
+            contents: bytemuck::cast_slice(&[
+                Vertex {
+                    position: [0.0, 0.0, 0.0],
+                    color: [1.0, 1.0, 1.0],
+                    tex_coords: [0.0, 0.0],
+                },
+                Vertex {
+                    position: [0.0, 1.0, 0.0],
+                    color: [1.0, 1.0, 1.0],
+                    tex_coords: [0.0, 1.0],
+                },
+                Vertex {
+                    position: [1.0, 0.0, 0.0],
+                    color: [1.0, 1.0, 1.0],
+                    tex_coords: [1.0, 0.0],
+                },
+                Vertex {
+                    position: [1.0, 0.0, 0.0],
+                    color: [1.0, 1.0, 1.0],
+                    tex_coords: [1.0, 0.0],
+                },
+                Vertex {
+                    position: [0.0, 1.0, 0.0],
+                    color: [1.0, 1.0, 1.0],
+                    tex_coords: [0.0, 1.0],
+                },
+                Vertex {
+                    position: [1.0, 1.0, 0.0],
+                    color: [1.0, 1.0, 1.0],
+                    tex_coords: [1.0, 1.0],
+                },
+            ]),
+            usage: wgpu::BufferUsage::VERTEX,
+        });
+
+        let instance_buffer = device.create_buffer(&BufferDescriptor {
+            label: Some("rectangle_renderer_instance_buffer"),
+            size: INSTANCE_BUFFER_SIZE,
             usage: wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_DST,
             mapped_at_creation: false,
         });
@@ -101,6 +145,8 @@ impl RectangleRenderer {
             uniform_bind_group,
             uniform_buffer,
             vertex_buffer,
+            instance_buffer,
+            instances: vec![],
             vertex_count: 0,
         }
     }
@@ -111,96 +157,109 @@ impl RectangleRenderer {
         rectangle_shape: &RectangleShape,
         transform: &Transform2D,
     ) {
-        queue.write_buffer(
-            &self.vertex_buffer,
-            self.vertex_count as u64 * std::mem::size_of::<Vertex>() as u64,
-            bytemuck::cast_slice(&[
-                Vertex {
-                    position: [transform.translation.0, transform.translation.1, 0.0],
-                    color: [
-                        rectangle_shape.color.0,
-                        rectangle_shape.color.1,
-                        rectangle_shape.color.1,
-                    ],
-                    tex_coords: [0.0, 0.0],
-                },
-                Vertex {
-                    position: [
-                        transform.translation.0,
-                        transform.translation.1 + rectangle_shape.height,
-                        0.0,
-                    ],
-                    color: [
-                        rectangle_shape.color.0,
-                        rectangle_shape.color.1,
-                        rectangle_shape.color.1,
-                    ],
-                    tex_coords: [0.0, 1.0],
-                },
-                Vertex {
-                    position: [
-                        transform.translation.0 + rectangle_shape.width,
-                        transform.translation.1,
-                        0.0,
-                    ],
-                    color: [
-                        rectangle_shape.color.0,
-                        rectangle_shape.color.1,
-                        rectangle_shape.color.1,
-                    ],
-                    tex_coords: [1.0, 0.0],
-                },
-                Vertex {
-                    position: [
-                        transform.translation.0 + rectangle_shape.width,
-                        transform.translation.1,
-                        0.0,
-                    ],
-                    color: [
-                        rectangle_shape.color.0,
-                        rectangle_shape.color.1,
-                        rectangle_shape.color.1,
-                    ],
-                    tex_coords: [1.0, 0.0],
-                },
-                Vertex {
-                    position: [
-                        transform.translation.0,
-                        transform.translation.1 + rectangle_shape.height,
-                        0.0,
-                    ],
-                    color: [
-                        rectangle_shape.color.0,
-                        rectangle_shape.color.1,
-                        rectangle_shape.color.1,
-                    ],
-                    tex_coords: [0.0, 1.0],
-                },
-                Vertex {
-                    position: [
-                        transform.translation.0 + rectangle_shape.width,
-                        transform.translation.1 + rectangle_shape.height,
-                        0.0,
-                    ],
-                    color: [
-                        rectangle_shape.color.0,
-                        rectangle_shape.color.1,
-                        rectangle_shape.color.1,
-                    ],
-                    tex_coords: [1.0, 1.0],
-                },
-            ]),
-        );
+        let instance = Instance {
+            position: Vector2 {
+                x: transform.translation.0,
+                y: transform.translation.1,
+            },
+            size: Vector2 {
+                x: rectangle_shape.width,
+                y: rectangle_shape.height,
+            },
+            color: rectangle_shape.color,
+            rotation: transform.angle,
+            rotation_center: (0.0, 0.0),
+        };
 
-        self.vertex_count += 6;
+        queue.write_buffer(
+            &self.instance_buffer,
+            self.instances.len() as u64 * std::mem::size_of::<InstanceRaw>() as u64,
+            bytemuck::cast_slice(&[instance.to_raw()]),
+        );
+        self.instances.push(instance);
     }
 
     pub fn render<'rpass>(&'rpass mut self, render_pass: &mut RenderPass<'rpass>) {
         render_pass.set_pipeline(&self.pipeline);
         render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-        render_pass.draw(0..self.vertex_count, 0..1);
-        self.vertex_count = 0;
+        render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+        render_pass.draw(0..6, 0..self.instances.len() as _);
+
+        self.instances.clear();
+    }
+}
+
+struct Instance {
+    position: cgmath::Vector2<f32>,
+    size: cgmath::Vector2<f32>,
+    color: (f32, f32, f32),
+    rotation: f32,
+    rotation_center: (f32, f32),
+}
+
+impl Instance {
+    fn to_raw(&self) -> InstanceRaw {
+        InstanceRaw {
+            model: (cgmath::Matrix4::from_translation(vec3(
+                self.position.x,
+                self.position.y,
+                0f32,
+            )) * cgmath::Matrix4::from_angle_z(Deg(self.rotation)))
+            .into(),
+            color: [self.color.0, self.color.1, self.color.2],
+            size: [self.size.x, self.size.y],
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+struct InstanceRaw {
+    model: [[f32; 4]; 4],
+    color: [f32; 3],
+    size: [f32; 2],
+}
+
+impl InstanceRaw {
+    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
+        use std::mem;
+        wgpu::VertexBufferLayout {
+            array_stride: mem::size_of::<InstanceRaw>() as wgpu::BufferAddress,
+            step_mode: wgpu::InputStepMode::Instance,
+            attributes: &[
+                wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float4,
+                    offset: 0,
+                    shader_location: 3,
+                },
+                wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float4,
+                    offset: mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
+                    shader_location: 4,
+                },
+                wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float4,
+                    offset: mem::size_of::<[f32; 8]>() as wgpu::BufferAddress,
+                    shader_location: 5,
+                },
+                wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float4,
+                    offset: mem::size_of::<[f32; 12]>() as wgpu::BufferAddress,
+                    shader_location: 6,
+                },
+                wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float3,
+                    offset: mem::size_of::<[f32; 16]>() as wgpu::BufferAddress,
+                    shader_location: 7,
+                },
+                wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float2,
+                    offset: mem::size_of::<[f32; 19]>() as wgpu::BufferAddress,
+                    shader_location: 8,
+                },
+            ],
+        }
     }
 }
 
