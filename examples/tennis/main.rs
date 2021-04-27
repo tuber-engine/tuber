@@ -6,7 +6,7 @@ use tuber::graphics_wgpu::GraphicsWGPU;
 use tuber::keyboard::Key;
 use tuber::*;
 
-const BALL_COUNT: usize = 20000;
+const BALL_COUNT: usize = 20;
 const PADDLE_WIDTH: f32 = 20.0;
 const PADDLE_HEIGHT: f32 = 100.0;
 const BALL_SIZE: f32 = 10.0;

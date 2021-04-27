@@ -1,4 +1,5 @@
 use crate::rectangle_renderer::RectangleRenderer;
+use crate::sprite_renderer::SpriteRenderer;
 use crate::texture::Texture;
 use futures;
 use std::collections::HashMap;
@@ -13,6 +14,7 @@ use wgpu::util::DeviceExt;
 use wgpu::{BlendFactor, BlendOperation, FragmentState, VertexState};
 
 mod rectangle_renderer;
+mod sprite_renderer;
 mod texture;
 
 #[derive(Debug)]
@@ -30,13 +32,8 @@ pub struct WGPUState {
     _sc_desc: wgpu::SwapChainDescriptor,
     swap_chain: wgpu::SwapChain,
     _window_size: WindowSize,
-    default_texture: Texture,
-    textured_render_pipeline: wgpu::RenderPipeline,
-    vertex_buffer: wgpu::Buffer,
-    _index_buffer: wgpu::Buffer,
-    num_vertices: u32,
-    pending_vertices: Vec<Vertex>,
     rectangle_renderer: RectangleRenderer,
+    sprite_renderer: SpriteRenderer,
 }
 
 impl GraphicsWGPU {
@@ -87,121 +84,8 @@ impl GraphicsAPI for GraphicsWGPU {
 
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
 
-        let textured_vertex_shader_module =
-            device.create_shader_module(&wgpu::include_spirv!("shaders/textured_shader.vert.spv"));
-        let textured_fragment_shader_module =
-            device.create_shader_module(&wgpu::include_spirv!("shaders/textured_shader.frag.spv"));
-
-        let uniform_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStage::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-                label: Some("uniform_bind_group_layout"),
-            });
-
-        let texture_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("texture_bind_group_layout"),
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStage::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
-                            multisampled: false,
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                            sample_type: wgpu::TextureSampleType::Float { filterable: false },
-                        },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStage::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler {
-                            comparison: false,
-                            filtering: true,
-                        },
-                        count: None,
-                    },
-                ],
-            });
-        let default_texture_data = TextureData::from_bytes(
-            "default_texture.png",
-            include_bytes!("textures/default_texture.png"),
-        )
-        .unwrap();
-        let default_texture =
-            Texture::from_texture_data(&device, &queue, default_texture_data).unwrap();
-
-        let textured_render_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[&uniform_bind_group_layout, &texture_bind_group_layout],
-                push_constant_ranges: &[],
-            });
-
-        let textured_render_pipeline =
-            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("Render Pipeline"),
-                layout: Some(&textured_render_pipeline_layout),
-                vertex: wgpu::VertexState {
-                    module: &textured_vertex_shader_module,
-                    entry_point: "main",
-                    buffers: &[Vertex::desc()],
-                },
-                fragment: Some(wgpu::FragmentState {
-                    module: &textured_fragment_shader_module,
-                    entry_point: "main",
-                    targets: &[wgpu::ColorTargetState {
-                        format: sc_desc.format,
-                        alpha_blend: wgpu::BlendState {
-                            src_factor: BlendFactor::SrcAlpha,
-                            dst_factor: BlendFactor::OneMinusSrcAlpha,
-                            operation: BlendOperation::Add,
-                        },
-                        color_blend: wgpu::BlendState::REPLACE,
-                        write_mask: wgpu::ColorWrite::ALL,
-                    }],
-                }),
-                primitive: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleList,
-                    strip_index_format: None,
-                    front_face: wgpu::FrontFace::Ccw,
-                    cull_mode: wgpu::CullMode::Back,
-                    polygon_mode: wgpu::PolygonMode::Fill,
-                },
-                depth_stencil: None,
-                multisample: wgpu::MultisampleState {
-                    count: 1,
-                    mask: !0,
-                    alpha_to_coverage_enabled: false,
-                },
-            });
-
-        let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("Vertex Buffer"),
-            usage: wgpu::BufferUsage::VERTEX,
-            size: 0,
-            mapped_at_creation: false,
-        });
-
-        let index_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("Index Buffer"),
-            usage: wgpu::BufferUsage::INDEX,
-            size: 0,
-            mapped_at_creation: false,
-        });
-
-        let rectangle_renderer = RectangleRenderer::new(&device, format);
-
-        let num_vertices = 0;
+        let rectangle_renderer = RectangleRenderer::new(&device, &format);
+        let sprite_renderer = SpriteRenderer::new(&device, &queue, &format);
 
         self.wgpu_state = Some(WGPUState {
             _surface: surface,
@@ -210,13 +94,8 @@ impl GraphicsAPI for GraphicsWGPU {
             _sc_desc: sc_desc,
             swap_chain,
             _window_size: window_size,
-            default_texture,
-            textured_render_pipeline,
-            vertex_buffer,
-            _index_buffer: index_buffer,
-            num_vertices,
-            pending_vertices: vec![],
             rectangle_renderer,
+            sprite_renderer,
         });
     }
 
@@ -255,6 +134,7 @@ impl GraphicsAPI for GraphicsWGPU {
             });
 
             state.rectangle_renderer.render(&mut render_pass);
+            state.sprite_renderer.render(&mut render_pass);
         }
 
         state.queue.submit(std::iter::once(encoder.finish()));
@@ -272,6 +152,14 @@ impl GraphicsAPI for GraphicsWGPU {
         sprite: &Sprite,
         transform: &Transform2D,
     ) -> Result<(), GraphicsError> {
+        let mut state = self.wgpu_state.as_mut().unwrap();
+        state.sprite_renderer.prepare(
+            &state.device,
+            &state.queue,
+            sprite,
+            transform,
+            &self.textures,
+        );
         Ok(())
     }
 
