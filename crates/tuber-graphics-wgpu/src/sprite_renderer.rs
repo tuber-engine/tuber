@@ -218,6 +218,10 @@ impl SpriteRenderer {
         transform_2d: &Transform2D,
         textures: &HashMap<String, Texture>,
     ) {
+        if self.instances.len() == 0 {
+            self.instance_bind_groups.clear();
+        }
+
         let instance = Instance {
             model: (*transform_2d).into(),
             size: Vector2 {
@@ -261,7 +265,6 @@ impl SpriteRenderer {
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
             render_pass.draw(0..6, instance_index..instance_index + 1);
         }
-
         self.instances.clear();
     }
 }
