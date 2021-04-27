@@ -36,6 +36,11 @@ impl ComponentStore {
             entities_bitset: [0u64; 1024],
         }
     }
+
+    pub fn remove_from_entity(&mut self, entity_index: EntityIndex) {
+        self.entities_bitset.set_bit(entity_index);
+        self.component_data[entity_index] = None;
+    }
 }
 
 /// The Ecs itself, stores entities and runs systems
@@ -89,6 +94,12 @@ impl Ecs {
         index
     }
 
+    pub fn remove_component<C: 'static>(&mut self, entity_index: EntityIndex) {
+        if let Some(components) = self.components.get_mut(&TypeId::of::<C>()) {
+            components.remove_from_entity(entity_index);
+        }
+    }
+
     pub fn query<'a, Q: Query<'a>>(&self) -> QueryIterator<Q> {
         QueryIterator::new(self.entity_count(), &self.components)
     }
@@ -115,6 +126,10 @@ impl Ecs {
         };
 
         Some(Q::fetch(index, &self.components))
+    }
+
+    pub fn query_one_by_id<'a, Q: Query<'a>>(&'a self, id: EntityIndex) -> Q::ResultType {
+        Q::fetch(id, &self.components)
     }
 
     /// Returns the entity count of the Ecs.
