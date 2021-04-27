@@ -8,6 +8,7 @@ fn main() -> Result<()> {
     engine.ecs().insert((
         Transform2D {
             translation: (375.0, 275.0),
+            ..Default::default()
         },
         Sprite {
             width: 50.0,
@@ -19,6 +20,7 @@ fn main() -> Result<()> {
     engine.ecs().insert((
         Transform2D {
             translation: (500.0, 275.0),
+            ..Default::default()
         },
         Sprite {
             width: 50.0,
@@ -30,6 +32,7 @@ fn main() -> Result<()> {
     engine.ecs().insert((
         Transform2D {
             translation: (250.0, 275.0),
+            ..Default::default()
         },
         Sprite {
             width: 50.0,

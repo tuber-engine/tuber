@@ -79,6 +79,7 @@ fn main() -> tuber::Result<()> {
         engine.ecs().insert((
             Transform2D {
                 translation: (rng.gen_range(0.0..=700.0), rng.gen_range(0.0..=500.0)),
+                ..Default::default()
             },
             Velocity {
                 x: rng.gen_range(1.0..=5.0),
