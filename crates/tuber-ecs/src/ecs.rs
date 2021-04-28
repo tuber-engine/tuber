@@ -38,7 +38,7 @@ impl ComponentStore {
     }
 
     pub fn remove_from_entity(&mut self, entity_index: EntityIndex) {
-        self.entities_bitset.set_bit(entity_index);
+        self.entities_bitset.unset_bit(entity_index);
         self.component_data[entity_index] = None;
     }
 }
