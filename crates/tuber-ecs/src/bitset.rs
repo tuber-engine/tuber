@@ -7,6 +7,9 @@ pub trait BitSet {
 
     /// Returns the value of a bit
     fn bit(&self, bit: usize) -> bool;
+
+    /// Returns the total number of bits of a bitset
+    fn bit_count(&self) -> usize;
 }
 
 impl BitSet for [u64] {
@@ -27,6 +30,9 @@ impl BitSet for [u64] {
         let remainder = bit % 64;
         (self[cell] & (1 << remainder)) != 0
     }
+    fn bit_count(&self) -> usize {
+        self.len() * 64
+    }
 }
 
 impl BitSet for u64 {
@@ -40,6 +46,10 @@ impl BitSet for u64 {
 
     fn bit(&self, bit: usize) -> bool {
         (*self & (1 << bit)) != 0
+    }
+
+    fn bit_count(&self) -> usize {
+        64
     }
 }
 

@@ -3,29 +3,38 @@ use crate::ecs::Components;
 use crate::EntityIndex;
 use accessors::Accessor;
 use std::any::TypeId;
+use std::collections::HashSet;
 use std::marker::PhantomData;
 
 pub trait Query<'a> {
     type ResultType: 'a;
 
     fn fetch(index: EntityIndex, components: &'a Components) -> Self::ResultType;
+    fn matching_ids(entity_count: usize, components: &'a Components) -> HashSet<EntityIndex>;
     fn type_ids() -> Vec<TypeId>;
 }
 
 macro_rules! impl_query_tuples {
-    ($($t:tt,)*) => {
-        impl<'a, $($t,)*> Query<'a> for ($($t,)*)
+    ($th:tt, $($t:tt,)*) => {
+        impl<'a, $th, $($t,)*> Query<'a> for ($th, $($t,)*)
         where
+            $th: Accessor<'a>,
             $($t: Accessor<'a>,)*
         {
-            type ResultType = (EntityIndex, ($($t::RefType,)*));
+            type ResultType = (EntityIndex, ($th::RefType, $($t::RefType,)*));
 
             fn fetch(index: EntityIndex, components: &'a Components) -> Self::ResultType {
-                (index, ($($t::fetch(index, components),)*))
+                (index, ($th::fetch(index, components), $($t::fetch(index, components),)*))
+            }
+
+            fn matching_ids(entity_count: usize, components: &'a Components) -> HashSet<EntityIndex> {
+                let mut result = $th::matching_ids(entity_count, components);
+                $(result = result.intersection(&$t::matching_ids(entity_count, components)).cloned().collect();)*
+                result
             }
 
             fn type_ids() -> Vec<TypeId> {
-                vec![$($t::type_id(),)*]
+                vec![$th::type_id(), $($t::type_id(),)*]
             }
         }
     }
@@ -95,9 +104,12 @@ where
 }
 
 pub mod accessors {
+    use crate::bitset::BitSet;
     use crate::ecs::Components;
+    use crate::EntityIndex;
     use std::any::TypeId;
     use std::cell::{Ref, RefMut};
+    use std::collections::HashSet;
     use std::marker::PhantomData;
 
     pub struct R<T>(PhantomData<T>);
@@ -108,6 +120,7 @@ pub mod accessors {
         type RefType: 'a;
 
         fn fetch(index: usize, components: &'a Components) -> Self::RefType;
+        fn matching_ids(entity_count: usize, components: &'a Components) -> HashSet<EntityIndex>;
         fn type_id() -> TypeId;
     }
     impl<'a, T: 'static> Accessor<'a> for R<T> {
@@ -122,6 +135,19 @@ pub mod accessors {
                     .borrow(),
                 |r| r.downcast_ref().unwrap(),
             )
+        }
+
+        fn matching_ids(entity_count: usize, components: &'a Components) -> HashSet<EntityIndex> {
+            let mut result = HashSet::new();
+            if let Some(component_store) = components.get(&TypeId::of::<T>()) {
+                for i in 0..entity_count.max(component_store.entities_bitset.bit_count()) {
+                    if component_store.entities_bitset.bit(i) {
+                        result.insert(i);
+                    }
+                }
+            }
+
+            result
         }
 
         fn type_id() -> TypeId {
@@ -140,6 +166,19 @@ pub mod accessors {
                     .borrow_mut(),
                 |r| r.downcast_mut().unwrap(),
             )
+        }
+
+        fn matching_ids(entity_count: usize, components: &'a Components) -> HashSet<EntityIndex> {
+            let mut result = HashSet::new();
+            if let Some(component_store) = components.get(&TypeId::of::<T>()) {
+                for i in 0..entity_count.max(component_store.entities_bitset.bit_count()) {
+                    if component_store.entities_bitset.bit(i) {
+                        result.insert(i);
+                    }
+                }
+            }
+
+            result
         }
 
         fn type_id() -> TypeId {
