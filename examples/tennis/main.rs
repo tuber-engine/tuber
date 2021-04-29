@@ -72,7 +72,7 @@ fn main() -> tuber::Result<()> {
             },
             Transform2D {
                 translation: BALL_INITIAL_POSITION,
-                rotation_center: (BALL_INITIAL_POSITION.0 / 2.0, BALL_INITIAL_POSITION.1 / 2.0),
+                rotation_center: (BALL_SIZE / 2.0, BALL_SIZE / 2.0),
                 ..Default::default()
             },
             Ball,
