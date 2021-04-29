@@ -27,6 +27,7 @@ macro_rules! impl_query_tuples {
                 (index, ($th::fetch(index, components), $($t::fetch(index, components),)*))
             }
 
+            #[allow(unused_mut)]
             fn matching_ids(entity_count: usize, components: &'a Components) -> HashSet<EntityIndex> {
                 let mut result = $th::matching_ids(entity_count, components);
                 $(result = result.intersection(&$t::matching_ids(entity_count, components)).cloned().collect();)*

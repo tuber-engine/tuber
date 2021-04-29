@@ -10,8 +10,6 @@ use tuber_graphics::texture::TextureData;
 use tuber_graphics::{
     Graphics, GraphicsAPI, GraphicsError, RectangleShape, Sprite, Transform2D, Window, WindowSize,
 };
-use wgpu::util::DeviceExt;
-use wgpu::{BlendFactor, BlendOperation, FragmentState, VertexState};
 
 mod rectangle_renderer;
 mod sprite_renderer;
@@ -141,7 +139,7 @@ impl GraphicsAPI for GraphicsWGPU {
     }
 
     fn prepare_rectangle(&mut self, rectangle: &RectangleShape, transform: &Transform2D) {
-        let mut state = self.wgpu_state.as_mut().unwrap();
+        let state = self.wgpu_state.as_mut().unwrap();
         state
             .rectangle_renderer
             .prepare(&state.queue, rectangle, transform);
@@ -152,7 +150,7 @@ impl GraphicsAPI for GraphicsWGPU {
         sprite: &Sprite,
         transform: &Transform2D,
     ) -> Result<(), GraphicsError> {
-        let mut state = self.wgpu_state.as_mut().unwrap();
+        let state = self.wgpu_state.as_mut().unwrap();
         state.sprite_renderer.prepare(
             &state.device,
             &state.queue,
@@ -190,11 +188,6 @@ fn render(ecs: &mut Ecs) {
     }
     graphics.finish_prepare_render();
     graphics.render();
-}
-
-struct Quad {
-    texture: Option<String>,
-    vertices: Vec<Vertex>,
 }
 
 #[repr(C)]

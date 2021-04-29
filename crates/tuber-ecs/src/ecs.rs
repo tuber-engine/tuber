@@ -5,7 +5,7 @@ use crate::query::{Query, QueryIterator};
 use crate::EntityIndex;
 use std::any::{Any, TypeId};
 use std::cell::{Ref, RefCell, RefMut};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 pub type Components = HashMap<TypeId, ComponentStore>;
 pub type Resources = HashMap<TypeId, RefCell<Box<dyn Any>>>;
@@ -95,7 +95,6 @@ impl Ecs {
     }
 
     pub fn delete_by_query<Q: for<'a> Query<'a>>(&mut self) {
-        use crate::ecs::BitSet;
         let to_delete = Q::matching_ids(self.entity_count(), &mut self.components);
         for entity_index in to_delete {
             for component in self.components.values_mut() {

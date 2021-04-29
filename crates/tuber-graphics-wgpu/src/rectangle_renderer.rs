@@ -1,17 +1,17 @@
 use crate::Vertex;
-use cgmath::{vec3, Deg, Vector2};
+use cgmath::Vector2;
 use tuber_graphics::{RectangleShape, Transform2D};
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{BufferDescriptor, Device, FragmentState, RenderPass, TextureFormat};
 
 const MAX_INSTANCE_COUNT: u64 = 100_000;
-const VERTEX_COUNT_PER_INSTANCE: u64 = 6;
+const VERTEX_COUNT_PER_INSTANCE: u32 = 6;
 const INSTANCE_BUFFER_SIZE: u64 = MAX_INSTANCE_COUNT * std::mem::size_of::<InstanceRaw>() as u64;
 
 pub(crate) struct RectangleRenderer {
     pipeline: wgpu::RenderPipeline,
     uniform_bind_group: wgpu::BindGroup,
-    uniform_buffer: wgpu::Buffer,
+    _uniform_buffer: wgpu::Buffer,
     vertex_buffer: wgpu::Buffer,
     instance_buffer: wgpu::Buffer,
     instances: Vec<Instance>,
@@ -140,7 +140,7 @@ impl RectangleRenderer {
         Self {
             pipeline,
             uniform_bind_group,
-            uniform_buffer,
+            _uniform_buffer: uniform_buffer,
             vertex_buffer,
             instance_buffer,
             instances: vec![],
@@ -175,7 +175,7 @@ impl RectangleRenderer {
         render_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
         render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-        render_pass.draw(0..6, 0..self.instances.len() as _);
+        render_pass.draw(0..VERTEX_COUNT_PER_INSTANCE, 0..self.instances.len() as _);
 
         self.instances.clear();
     }
