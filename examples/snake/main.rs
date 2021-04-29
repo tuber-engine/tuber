@@ -1,6 +1,6 @@
 use rand::{thread_rng, Rng};
 use std::collections::VecDeque;
-use tuber::graphics::{Graphics, GraphicsAPI, RectangleShape, Sprite, Transform2D};
+use tuber::graphics::{Graphics, GraphicsAPI, Sprite, Transform2D};
 use tuber::graphics_wgpu::GraphicsWGPU;
 use tuber::keyboard::Key;
 use tuber::Input::KeyDown;
@@ -8,12 +8,14 @@ use tuber::*;
 use tuber::{ecs::ecs::Ecs, ecs::query::accessors::*, ecs::system::*, Result};
 use tuber_core::ecs::EntityIndex;
 
-const SNAKE_SPEED: f32 = 2.0;
+const WINDOW_WIDTH: u32 = 800;
+const WINDOW_HEIGHT: u32 = 600;
+const BODY_PART_SIZE: f32 = 64.0;
+const SNAKE_SPEED: f32 = 4.0;
 
 struct SnakeHead;
 struct SnakeTail;
 struct SnakeBodyPart {
-    pivots: VecDeque<Pivot>,
     next_body_part: Option<EntityIndex>,
 }
 
@@ -22,6 +24,8 @@ struct Pivot {
     position: (f32, f32),
     angle: f32,
 }
+
+struct PivotList(VecDeque<Pivot>);
 
 struct Apple;
 
@@ -37,72 +41,118 @@ struct Score(u32);
 fn main() -> Result<()> {
     let mut engine = Engine::new();
 
+    engine.ecs().insert_resource(PivotList(VecDeque::new()));
     engine.ecs().insert_resource(Score(0));
-    let snake_tail = engine.ecs().insert((
-        Transform2D {
-            translation: (300.0, 300.0 + 128.0),
-            rotation_center: (32.0, 64.0),
-            ..Default::default()
-        },
-        Sprite {
-            width: 64.0,
-            height: 64.0,
-            texture: "examples/snake/snake_tail.png".into(),
-        },
-        Velocity {
-            x: 0.0,
-            y: -SNAKE_SPEED,
-        },
-        SnakeBodyPart {
-            pivots: VecDeque::new(),
-            next_body_part: None,
-        },
-        SnakeTail,
-    ));
-    let snake_body = engine.ecs().insert((
-        Transform2D {
-            translation: (300.0, 300.0 + 64.0),
-            rotation_center: (32.0, 64.0),
-            ..Default::default()
-        },
-        Sprite {
-            width: 64.0,
-            height: 64.0,
-            texture: "examples/snake/snake_body.png".into(),
-        },
-        Velocity {
-            x: 0.0,
-            y: -SNAKE_SPEED,
-        },
-        SnakeBodyPart {
-            pivots: VecDeque::new(),
-            next_body_part: Some(snake_tail),
-        },
-    ));
-    let _snake_head = engine.ecs().insert((
-        Transform2D {
-            translation: (300.0, 300.0),
-            rotation_center: (32.0, 64.0),
-            ..Default::default()
-        },
-        Sprite {
-            width: 64.0,
-            height: 64.0,
-            texture: "examples/snake/snake_face.png".into(),
-        },
-        Velocity {
-            x: 0.0,
-            y: -SNAKE_SPEED,
-        },
-        SnakeHead,
-        SnakeBodyPart {
-            pivots: VecDeque::new(),
-            next_body_part: Some(snake_body),
-        },
-    ));
 
+    spawn_snake(engine.ecs());
+    spawn_apple(engine.ecs());
+
+    let mut graphics = Graphics::new(Box::new(GraphicsWGPU::new()));
+    let mut bundle = SystemBundle::new();
+    bundle.add_system(move_head_system);
+    bundle.add_system(move_body_parts_system);
+    bundle.add_system(eat_apple_system);
+    bundle.add_system(check_collision_with_body_system);
+    engine.add_system_bundle(bundle);
+    engine.add_system_bundle(graphics.default_system_bundle());
+    WinitTuberRunner.run(engine, graphics)
+}
+
+fn check_collision_with_body_system(ecs: &mut Ecs) {
+    let mut is_game_over = false;
+    {
+        let (head_id, (_, head_body_part, head_transform)) = ecs
+            .query_one::<(R<SnakeHead>, R<SnakeBodyPart>, R<Transform2D>)>()
+            .unwrap();
+        let next_id = head_body_part.next_body_part.unwrap();
+        for (body_part_id, (_, body_part_transform)) in
+            ecs.query::<(R<SnakeBodyPart>, R<Transform2D>)>()
+        {
+            if head_id == body_part_id || next_id == body_part_id {
+                continue;
+            }
+
+            if rectangle_intersects(
+                (
+                    head_transform.translation.0,
+                    head_transform.translation.1,
+                    BODY_PART_SIZE,
+                    BODY_PART_SIZE,
+                ),
+                (
+                    body_part_transform.translation.0,
+                    body_part_transform.translation.1,
+                    BODY_PART_SIZE,
+                    BODY_PART_SIZE,
+                ),
+            ) {
+                is_game_over = true;
+            }
+        }
+    }
+
+    if is_game_over {
+        game_over(ecs);
+    }
+}
+
+fn move_head_system(ecs: &mut Ecs) {
+    let mut is_game_over = false;
+    {
+        let input_state = ecs.resource::<InputState>();
+        let (_, (_, mut velocity, mut transform)) = ecs
+            .query_one::<(R<SnakeHead>, W<Velocity>, W<Transform2D>)>()
+            .unwrap();
+
+        let mut pivot_list = ecs.resource_mut::<PivotList>();
+        if input_state.is(KeyDown(Key::Q)) {
+            transform.angle -= 2.0;
+            pivot_list.0.push_back(Pivot {
+                position: transform.translation,
+                angle: transform.angle,
+            });
+        } else if input_state.is(KeyDown(Key::D)) {
+            transform.angle += 2.0;
+            pivot_list.0.push_back(Pivot {
+                position: transform.translation,
+                angle: transform.angle,
+            });
+        }
+
+        *velocity = compute_new_segment_velocity(transform.angle);
+        *transform = compute_new_segment_position(*transform, &velocity);
+
+        is_game_over = transform.translation.0 < -BODY_PART_SIZE
+            || transform.translation.0 > WINDOW_WIDTH as f32
+            || transform.translation.1 < -BODY_PART_SIZE
+            || transform.translation.1 > WINDOW_HEIGHT as f32;
+    }
+
+    if is_game_over {
+        game_over(ecs);
+    }
+}
+
+fn game_over(ecs: &mut Ecs) {
+    println!("Game Over");
+    reset_score(ecs);
+    respawn_snake(ecs);
+}
+
+fn reset_score(ecs: &mut Ecs) {
+    let mut score = ecs.resource_mut::<Score>();
+    score.0 = 0;
+    println!("Score: {}", score.0);
+}
+
+fn respawn_snake(ecs: &mut Ecs) {
+    ecs.delete_by_query::<(R<SnakeBodyPart>,)>();
+    spawn_snake(ecs);
+}
+
+fn spawn_apple(ecs: &mut Ecs) {
     let mut rng = thread_rng();
-    let _apple = engine.ecs().insert((
+    let _apple = ecs.insert((
         Transform2D {
             translation: (
                 rng.gen_range(0.0..800.0 - 64.0),
@@ -117,162 +167,178 @@ fn main() -> Result<()> {
         },
         Apple,
     ));
-
-    let mut graphics = Graphics::new(Box::new(GraphicsWGPU::new()));
-    let mut bundle = SystemBundle::new();
-    bundle.add_system(move_player_system);
-    bundle.add_system(collide_apple_system);
-    engine.add_system_bundle(bundle);
-    engine.add_system_bundle(graphics.default_system_bundle());
-    WinitTuberRunner.run(engine, graphics)
 }
 
-fn move_player_system(ecs: &mut Ecs) {
-    let mut pivots_to_add = vec![];
-    let mut head_id = 0;
-    {
-        let input_state = ecs.resource::<InputState>();
-        {
-            let (id, (_, body_part, mut velocity, mut transform)) = ecs
-                .query_one::<(R<SnakeHead>, R<SnakeBodyPart>, W<Velocity>, W<Transform2D>)>()
-                .unwrap();
-            head_id = id;
-
-            if input_state.is(KeyDown(Key::Q)) {
-                transform.angle -= 1.0;
-
-                pivots_to_add.push(Pivot {
-                    position: (transform.translation.0, transform.translation.1),
-                    angle: transform.angle,
-                });
-            } else if input_state.is(KeyDown(Key::D)) {
-                transform.angle += 1.0;
-
-                pivots_to_add.push(Pivot {
-                    position: (transform.translation.0, transform.translation.1),
-                    angle: transform.angle,
-                });
-            }
-
-            let angle_radians = transform.angle.to_radians();
-            velocity.x = SNAKE_SPEED * angle_radians.sin();
-            velocity.y = -SNAKE_SPEED * angle_radians.cos();
-            transform.translation.0 += velocity.x;
-            transform.translation.1 += velocity.y;
-        }
-    }
-
-    pivots_to_add
-        .iter()
-        .for_each(|pivot| add_pivot_to_each_parts(ecs, head_id, *pivot));
-
-    for (id, (mut body_part, mut velocity, mut transform)) in
-        ecs.query::<(W<SnakeBodyPart>, W<Velocity>, W<Transform2D>)>()
-    {
-        if id == head_id {
-            continue;
-        }
-
-        if let Some(p) = body_part.pivots.front() {
-            if transform.translation.0 as i32 == p.position.0 as i32
-                && transform.translation.1 as i32 == p.position.1 as i32
-            {
-                transform.angle = p.angle;
-                body_part.pivots.pop_front();
-            }
-        }
-        let angle_radians = transform.angle.to_radians();
-        velocity.x = SNAKE_SPEED * angle_radians.sin();
-        velocity.y = -SNAKE_SPEED * angle_radians.cos();
-        transform.translation.0 += velocity.x;
-        transform.translation.1 += velocity.y;
-    }
+fn spawn_snake(ecs: &mut Ecs) {
+    let snake_tail = ecs.insert((
+        Transform2D {
+            translation: (300.0, 300.0 + BODY_PART_SIZE),
+            rotation_center: (32.0, BODY_PART_SIZE),
+            ..Default::default()
+        },
+        Sprite {
+            width: BODY_PART_SIZE,
+            height: BODY_PART_SIZE,
+            texture: "examples/snake/snake_tail.png".into(),
+        },
+        Velocity {
+            x: 0.0,
+            y: -SNAKE_SPEED,
+        },
+        SnakeBodyPart {
+            next_body_part: None,
+        },
+        SnakeTail,
+    ));
+    let _snake_head = ecs.insert((
+        Transform2D {
+            translation: (300.0, 300.0),
+            rotation_center: (BODY_PART_SIZE / 2.0, BODY_PART_SIZE),
+            ..Default::default()
+        },
+        Sprite {
+            width: BODY_PART_SIZE,
+            height: BODY_PART_SIZE,
+            texture: "examples/snake/snake_face.png".into(),
+        },
+        Velocity {
+            x: 0.0,
+            y: -SNAKE_SPEED,
+        },
+        SnakeHead,
+        SnakeBodyPart {
+            next_body_part: Some(snake_tail),
+        },
+    ));
 }
 
-fn add_pivot_to_each_parts(ecs: &mut Ecs, head_id: EntityIndex, pivot: Pivot) {
-    for (body_part_id, (mut body_part,)) in ecs.query::<(W<SnakeBodyPart>,)>() {
+fn move_body_parts_system(ecs: &mut Ecs) {
+    let (head_id, _) = ecs.query_one::<(R<SnakeHead>,)>().unwrap();
+    let (tail_id, _) = ecs.query_one::<(R<SnakeTail>,)>().unwrap();
+    let mut pivots = ecs.resource_mut::<PivotList>();
+    let mut pivots_to_delete = vec![];
+    for (body_part_id, (mut transform, mut velocity)) in
+        ecs.query::<(W<Transform2D>, W<Velocity>)>()
+    {
         if body_part_id == head_id {
             continue;
         }
 
-        body_part.pivots.push_back(pivot);
+        for (pivot_index, pivot) in pivots.0.iter().enumerate() {
+            if (transform.translation.0 - pivot.position.0).abs() < 0.2
+                && (transform.translation.1 - pivot.position.1).abs() < 0.2
+            {
+                if body_part_id == tail_id {
+                    pivots_to_delete.push(pivot_index);
+                }
+                transform.angle = pivot.angle;
+            }
+        }
+        *velocity = compute_new_segment_velocity(transform.angle);
+        *transform = compute_new_segment_position(*transform, &velocity);
+    }
+
+    for id_pivot_to_delete in pivots_to_delete {
+        pivots.0.remove(id_pivot_to_delete);
     }
 }
 
-fn collide_apple_system(ecs: &mut Ecs) {
-    let mut colliding = false;
+fn eat_apple_system(ecs: &mut Ecs) {
+    let mut grow_snake = false;
     {
-        let (_, (_, snake_head_transform, snake_head_sprite)) = ecs
+        let (_, (_, head_transform, head_sprite)) = ecs
             .query_one::<(R<SnakeHead>, R<Transform2D>, R<Sprite>)>()
             .unwrap();
+        let mut score = ecs.resource_mut::<Score>();
+        let head_rectangle = (
+            head_transform.translation.0,
+            head_transform.translation.1,
+            head_sprite.width,
+            head_sprite.height,
+        );
+
         let mut rng = thread_rng();
         for (_, (_, mut apple_transform, apple_sprite)) in
             ecs.query::<(R<Apple>, W<Transform2D>, R<Sprite>)>()
         {
-            if rectangle_collides(
-                (
-                    snake_head_transform.translation.0,
-                    snake_head_transform.translation.1,
-                    snake_head_sprite.width,
-                    snake_head_sprite.height,
-                ),
-                (
-                    apple_transform.translation.0,
-                    apple_transform.translation.1,
-                    apple_sprite.width,
-                    apple_sprite.height,
-                ),
-            ) {
-                colliding = true;
+            let apple_rectangle = (
+                apple_transform.translation.0,
+                apple_transform.translation.1,
+                apple_sprite.width,
+                apple_sprite.height,
+            );
+
+            if rectangle_intersects(head_rectangle, apple_rectangle) {
                 apple_transform.translation.0 = rng.gen_range(0.0..800.0 - 64.0);
                 apple_transform.translation.1 = rng.gen_range(0.0..600.0 - 64.0);
-
-                let mut score = ecs.resource_mut::<Score>();
                 score.0 += 1;
-                println!("Score: {}", score.0);
+                grow_snake = true;
+                println!("Score: {}", score.0)
             }
         }
     }
 
-    let mut old_tail_to_delete = None;
-    if colliding {
-        let new_body_part = ecs.insert((
-            Sprite {
-                width: 64.0,
-                height: 64.0,
-                texture: "examples/snake/snake_tail.png".to_string(),
-            },
-            Transform2D {
-                translation: (0.0, 0.0),
-                angle: 0.0,
-                rotation_center: (0.0, 0.0),
-            },
-            Velocity { x: 0.0, y: 0.0 },
-            SnakeBodyPart {
-                pivots: VecDeque::new(),
-                next_body_part: None,
-            },
-            SnakeTail,
-        ));
+    if grow_snake {
+        let (old_tail_id, tail_transform, tail_velocity) = {
+            let (tail_id, (_, tail_transform, tail_velocity)) = ecs
+                .query_one::<(R<SnakeTail>, R<Transform2D>, R<Velocity>)>()
+                .unwrap();
+            (tail_id, *tail_transform, *tail_velocity)
+        };
 
-        let (old_tail, (_, mut tail_body_part, tail_transform, tail_velocity)) = ecs
-            .query_one::<(R<SnakeTail>, W<SnakeBodyPart>, R<Transform2D>, R<Velocity>)>()
-            .unwrap();
-        let (new_tail, (mut transform, mut velocity, mut body_part)) =
-            ecs.query_one_by_id::<(W<Transform2D>, W<Velocity>, W<SnakeBodyPart>)>(new_body_part);
-        *transform = *tail_transform;
-        *velocity = *tail_velocity;
+        let new_tail_id = {
+            ecs.insert((
+                Transform2D {
+                    translation: (
+                        tail_transform.translation.0 - BODY_PART_SIZE / 4.0 * tail_velocity.x,
+                        tail_transform.translation.1 - BODY_PART_SIZE / 4.0 * tail_velocity.y,
+                    ),
+                    ..tail_transform
+                },
+                Sprite {
+                    width: 64.0,
+                    height: 64.0,
+                    texture: "examples/snake/snake_tail.png".into(),
+                },
+                tail_velocity,
+                SnakeBodyPart {
+                    next_body_part: None,
+                },
+                SnakeTail,
+            ))
+        };
 
-        tail_body_part.next_body_part = Some(new_tail);
-        old_tail_to_delete = Some(old_tail);
-    }
-
-    if let Some(old_tail_to_delete) = old_tail_to_delete {
-        ecs.remove_component::<SnakeTail>(old_tail_to_delete);
+        {
+            {
+                let (_, (mut old_tail_body_part, mut sprite)) =
+                    ecs.query_one_by_id::<(W<SnakeBodyPart>, W<Sprite>)>(old_tail_id);
+                old_tail_body_part.next_body_part = Some(new_tail_id);
+                sprite.texture = "examples/snake/snake_body.png".into();
+            }
+            ecs.remove_component::<SnakeTail>(old_tail_id);
+        }
     }
 }
 
-fn rectangle_collides(
+fn compute_new_segment_velocity(angle_degrees: f32) -> Velocity {
+    let angle_radians = angle_degrees.to_radians();
+    Velocity {
+        x: SNAKE_SPEED * angle_radians.sin(),
+        y: -SNAKE_SPEED * angle_radians.cos(),
+    }
+}
+
+fn compute_new_segment_position(transform: Transform2D, velocity: &Velocity) -> Transform2D {
+    Transform2D {
+        translation: (
+            transform.translation.0 + velocity.x,
+            transform.translation.1 + velocity.y,
+        ),
+        ..transform
+    }
+}
+
+fn rectangle_intersects(
     first_rectangle: (f32, f32, f32, f32),
     second_rectangle: (f32, f32, f32, f32),
 ) -> bool {
