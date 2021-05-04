@@ -48,6 +48,8 @@ fn main() -> Result<()> {
     spawn_apple(engine.ecs());
 
     let mut graphics = Graphics::new(Box::new(GraphicsWGPU::new()));
+    graphics.set_bounding_box_rendering(true);
+
     let mut bundle = SystemBundle::new();
     bundle.add_system(move_head_system);
     bundle.add_system(move_body_parts_system);

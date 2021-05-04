@@ -73,11 +73,15 @@ unsafe impl HasRawWindowHandle for Window<'_> {
 
 pub struct Graphics {
     graphics_impl: Box<dyn LowLevelGraphicsAPI>,
+    bounding_box_rendering: bool,
 }
 
 impl Graphics {
     pub fn new(graphics_impl: Box<dyn LowLevelGraphicsAPI>) -> Self {
-        Self { graphics_impl }
+        Self {
+            graphics_impl,
+            bounding_box_rendering: false,
+        }
     }
     pub fn initialize(&mut self, window: Window, window_size: (u32, u32)) {
         self.graphics_impl.initialize(window, window_size);
@@ -96,6 +100,7 @@ impl Graphics {
                 texture: None,
             },
             transform,
+            self.bounding_box_rendering,
         );
     }
 
@@ -118,18 +123,23 @@ impl Graphics {
                 texture: Some(sprite.texture.clone()),
             },
             transform,
+            self.bounding_box_rendering,
         );
         Ok(())
     }
 
     pub fn default_system_bundle(&mut self) -> SystemBundle {
         let mut system_bundle = SystemBundle::new();
-        system_bundle.add_system(render);
+        system_bundle.add_system(render_system);
         system_bundle
+    }
+
+    pub fn set_bounding_box_rendering(&mut self, enabled: bool) {
+        self.bounding_box_rendering = enabled;
     }
 }
 
-fn render(ecs: &mut Ecs) {
+pub fn render_system(ecs: &mut Ecs) {
     let mut graphics = ecs.resource_mut::<Graphics>();
     for (_, (rectangle_shape, transform)) in ecs.query::<(R<RectangleShape>, R<Transform2D>)>() {
         graphics.prepare_rectangle(&rectangle_shape, &transform);
@@ -145,7 +155,12 @@ fn render(ecs: &mut Ecs) {
 pub trait LowLevelGraphicsAPI {
     fn initialize(&mut self, window: Window, window_size: WindowSize);
     fn render(&mut self);
-    fn prepare_quad(&mut self, quad_description: &QuadDescription, transform: &Transform2D);
+    fn prepare_quad(
+        &mut self,
+        quad_description: &QuadDescription,
+        transform: &Transform2D,
+        bounding_box_rendering: bool,
+    );
     fn is_texture_in_memory(&self, texture_identifier: &str) -> bool;
     fn load_texture(&mut self, texture_data: TextureData);
 }

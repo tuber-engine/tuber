@@ -1,3 +1,4 @@
+use crate::bounding_box_renderer::BoundingBoxRenderer;
 use crate::quad_renderer::QuadRenderer;
 use crate::texture::Texture;
 use futures;
@@ -5,6 +6,7 @@ use std::collections::HashMap;
 use tuber_graphics::texture::TextureData;
 use tuber_graphics::{LowLevelGraphicsAPI, QuadDescription, Transform2D, Window, WindowSize};
 
+mod bounding_box_renderer;
 mod quad_renderer;
 mod texture;
 
@@ -24,6 +26,7 @@ pub struct WGPUState {
     swap_chain: wgpu::SwapChain,
     _window_size: WindowSize,
     quad_renderer: QuadRenderer,
+    bounding_box_renderer: BoundingBoxRenderer,
 }
 
 impl GraphicsWGPU {
@@ -74,6 +77,7 @@ impl LowLevelGraphicsAPI for GraphicsWGPU {
 
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
         let quad_renderer = QuadRenderer::new(&device, &queue, &format);
+        let bounding_box_renderer = BoundingBoxRenderer::new(&device, &queue, &format);
 
         self.wgpu_state = Some(WGPUState {
             _surface: surface,
@@ -83,6 +87,7 @@ impl LowLevelGraphicsAPI for GraphicsWGPU {
             swap_chain,
             _window_size: window_size,
             quad_renderer,
+            bounding_box_renderer,
         });
     }
 
@@ -115,12 +120,18 @@ impl LowLevelGraphicsAPI for GraphicsWGPU {
             });
 
             state.quad_renderer.render(&mut render_pass);
+            state.bounding_box_renderer.render(&mut render_pass);
         }
 
         state.queue.submit(std::iter::once(encoder.finish()));
     }
 
-    fn prepare_quad(&mut self, quad_description: &QuadDescription, transform: &Transform2D) {
+    fn prepare_quad(
+        &mut self,
+        quad_description: &QuadDescription,
+        transform: &Transform2D,
+        bounding_box_rendering: bool,
+    ) {
         let state = self.wgpu_state.as_mut().expect("Graphics is uninitialized");
         state.quad_renderer.prepare(
             &state.device,
@@ -129,6 +140,15 @@ impl LowLevelGraphicsAPI for GraphicsWGPU {
             transform,
             &self.textures,
         );
+
+        if bounding_box_rendering {
+            state.bounding_box_renderer.prepare(
+                &state.queue,
+                quad_description.width,
+                quad_description.height,
+                transform,
+            );
+        }
     }
 
     fn is_texture_in_memory(&self, texture_identifier: &str) -> bool {
