@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use tuber::ecs::ecs::Ecs;
 use tuber::ecs::query::accessors::{R, W};
 use tuber::ecs::system::SystemBundle;
-use tuber::graphics::{Graphics, GraphicsAPI, RectangleShape, Transform2D};
+use tuber::graphics::{Graphics, RectangleShape, Transform2D};
 use tuber::graphics_wgpu::GraphicsWGPU;
 use tuber::*;
 
