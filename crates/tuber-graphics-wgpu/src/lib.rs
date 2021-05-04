@@ -1,18 +1,11 @@
-use crate::rectangle_renderer::RectangleRenderer;
-use crate::sprite_renderer::SpriteRenderer;
+use crate::quad_renderer::QuadRenderer;
 use crate::texture::Texture;
 use futures;
 use std::collections::HashMap;
-use tuber_ecs::ecs::Ecs;
-use tuber_ecs::query::accessors::R;
-use tuber_ecs::system::SystemBundle;
 use tuber_graphics::texture::TextureData;
-use tuber_graphics::{
-    Graphics, GraphicsAPI, GraphicsError, RectangleShape, Sprite, Transform2D, Window, WindowSize,
-};
+use tuber_graphics::{LowLevelGraphicsAPI, QuadDescription, Transform2D, Window, WindowSize};
 
-mod rectangle_renderer;
-mod sprite_renderer;
+mod quad_renderer;
 mod texture;
 
 #[derive(Debug)]
@@ -30,8 +23,7 @@ pub struct WGPUState {
     _sc_desc: wgpu::SwapChainDescriptor,
     swap_chain: wgpu::SwapChain,
     _window_size: WindowSize,
-    rectangle_renderer: RectangleRenderer,
-    sprite_renderer: SpriteRenderer,
+    quad_renderer: QuadRenderer,
 }
 
 impl GraphicsWGPU {
@@ -43,7 +35,7 @@ impl GraphicsWGPU {
     }
 }
 
-impl GraphicsAPI for GraphicsWGPU {
+impl LowLevelGraphicsAPI for GraphicsWGPU {
     fn initialize(&mut self, window: Window, window_size: WindowSize) {
         let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
         let surface = unsafe { instance.create_surface(&window) };
@@ -81,9 +73,7 @@ impl GraphicsAPI for GraphicsWGPU {
         let format = sc_desc.format;
 
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
-
-        let rectangle_renderer = RectangleRenderer::new(&device, &format);
-        let sprite_renderer = SpriteRenderer::new(&device, &queue, &format);
+        let quad_renderer = QuadRenderer::new(&device, &queue, &format);
 
         self.wgpu_state = Some(WGPUState {
             _surface: surface,
@@ -92,15 +82,8 @@ impl GraphicsAPI for GraphicsWGPU {
             _sc_desc: sc_desc,
             swap_chain,
             _window_size: window_size,
-            rectangle_renderer,
-            sprite_renderer,
+            quad_renderer,
         });
-    }
-
-    fn default_system_bundle(&mut self) -> SystemBundle {
-        let mut bundle = SystemBundle::new();
-        bundle.add_system(render);
-        bundle
     }
 
     fn render(&mut self) {
@@ -131,37 +114,22 @@ impl GraphicsAPI for GraphicsWGPU {
                 depth_stencil_attachment: None,
             });
 
-            state.rectangle_renderer.render(&mut render_pass);
-            state.sprite_renderer.render(&mut render_pass);
+            state.quad_renderer.render(&mut render_pass);
         }
 
         state.queue.submit(std::iter::once(encoder.finish()));
     }
 
-    fn prepare_rectangle(&mut self, rectangle: &RectangleShape, transform: &Transform2D) {
-        let state = self.wgpu_state.as_mut().unwrap();
-        state
-            .rectangle_renderer
-            .prepare(&state.queue, rectangle, transform);
-    }
-
-    fn prepare_sprite(
-        &mut self,
-        sprite: &Sprite,
-        transform: &Transform2D,
-    ) -> Result<(), GraphicsError> {
-        let state = self.wgpu_state.as_mut().unwrap();
-        state.sprite_renderer.prepare(
+    fn prepare_quad(&mut self, quad_description: &QuadDescription, transform: &Transform2D) {
+        let state = self.wgpu_state.as_mut().expect("Graphics is uninitialized");
+        state.quad_renderer.prepare(
             &state.device,
             &state.queue,
-            sprite,
+            quad_description,
             transform,
             &self.textures,
         );
-        Ok(())
     }
-
-    fn finish_prepare_render(&mut self) {}
 
     fn is_texture_in_memory(&self, texture_identifier: &str) -> bool {
         self.textures.contains_key(texture_identifier)
@@ -176,23 +144,9 @@ impl GraphicsAPI for GraphicsWGPU {
     }
 }
 
-fn render(ecs: &mut Ecs) {
-    let mut graphics = ecs.resource_mut::<Graphics>();
-    for (_, (rectangle_shape, transform)) in ecs.query::<(R<RectangleShape>, R<Transform2D>)>() {
-        graphics.prepare_rectangle(&rectangle_shape, &transform);
-    }
-    for (_, (sprite, transform)) in ecs.query::<(R<Sprite>, R<Transform2D>)>() {
-        if let Err(e) = graphics.prepare_sprite(&sprite, &transform) {
-            println!("{:?}", e);
-        }
-    }
-    graphics.finish_prepare_render();
-    graphics.render();
-}
-
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-struct Vertex {
+pub struct Vertex {
     position: [f32; 3],
     color: [f32; 3],
     tex_coords: [f32; 2],

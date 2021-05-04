@@ -11,3 +11,4 @@ tuber-ecs = { path = "../tuber-ecs" }
 raw-window-handle = "0.3.3"
 image = "0.23.14"
 cgmath = "0.18.0"
+bytemuck = { version =  "1.5", features = [ "derive" ] }

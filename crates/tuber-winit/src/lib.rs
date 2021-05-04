@@ -2,7 +2,7 @@ use std::convert::{TryFrom, TryInto};
 use tuber_core::input::keyboard::Key;
 use tuber_core::input::Input;
 use tuber_core::{Engine, Result as TuberResult, TuberRunner};
-use tuber_graphics::{Graphics, GraphicsAPI, Window};
+use tuber_graphics::{Graphics, Window};
 use winit::event::{ElementState, KeyboardInput, VirtualKeyCode};
 use winit::{
     event::{Event, WindowEvent},

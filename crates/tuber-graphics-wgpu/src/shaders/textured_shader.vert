@@ -8,7 +8,8 @@ layout(location=3) in vec4 model_matrix_0;
 layout(location=4) in vec4 model_matrix_1;
 layout(location=5) in vec4 model_matrix_2;
 layout(location=6) in vec4 model_matrix_3;
-layout(location=7) in vec2 size;
+layout(location=7) in vec3 color;
+layout(location=8) in vec2 size;
 
 layout(location=0) out vec3 v_color;
 layout(location=1) out vec2 v_tex_coords;

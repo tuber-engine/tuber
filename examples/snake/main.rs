@@ -1,6 +1,6 @@
 use rand::{thread_rng, Rng};
 use std::collections::VecDeque;
-use tuber::graphics::{Graphics, GraphicsAPI, Sprite, Transform2D};
+use tuber::graphics::{Graphics, Sprite, Transform2D};
 use tuber::graphics_wgpu::GraphicsWGPU;
 use tuber::keyboard::Key;
 use tuber::Input::KeyDown;
@@ -97,8 +97,7 @@ fn check_collision_with_body_system(ecs: &mut Ecs) {
 }
 
 fn move_head_system(ecs: &mut Ecs) {
-    let mut is_game_over = false;
-    {
+    let is_game_over = {
         let input_state = ecs.resource::<InputState>();
         let (_, (_, mut velocity, mut transform)) = ecs
             .query_one::<(R<SnakeHead>, W<Velocity>, W<Transform2D>)>()
@@ -122,11 +121,11 @@ fn move_head_system(ecs: &mut Ecs) {
         *velocity = compute_new_segment_velocity(transform.angle);
         *transform = compute_new_segment_position(*transform, &velocity);
 
-        is_game_over = transform.translation.0 < -BODY_PART_SIZE
+        transform.translation.0 < -BODY_PART_SIZE
             || transform.translation.0 > WINDOW_WIDTH as f32
             || transform.translation.1 < -BODY_PART_SIZE
-            || transform.translation.1 > WINDOW_HEIGHT as f32;
-    }
+            || transform.translation.1 > WINDOW_HEIGHT as f32
+    };
 
     if is_game_over {
         game_over(ecs);
