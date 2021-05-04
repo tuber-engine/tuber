@@ -24,14 +24,14 @@ impl BoundingBoxRenderer {
     pub fn new(device: &Device, texture_format: &TextureFormat) -> Self {
         let uniforms = Uniforms::new();
         let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("quad_renderer_uniform_buffer"),
+            label: Some("bounding_box_renderer_uniform_buffer"),
             contents: bytemuck::cast_slice(&[uniforms]),
             usage: wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
         });
 
         let uniform_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("quad_renderer_uniform_bind_group_layout"),
+                label: Some("bounding_box_renderer_uniform_bind_group_layout"),
                 entries: &[wgpu::BindGroupLayoutEntry {
                     binding: 0,
                     visibility: wgpu::ShaderStage::VERTEX,
@@ -45,7 +45,7 @@ impl BoundingBoxRenderer {
             });
 
         let uniform_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("quad_renderer_uniform_bind_group"),
+            label: Some("bounding_box_renderer_uniform_bind_group"),
             layout: &uniform_bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
@@ -83,13 +83,13 @@ impl BoundingBoxRenderer {
             device.create_shader_module(&wgpu::include_spirv!("shaders/line_shader.frag.spv"));
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("quad_renderer_colored_render_pipeline_layout"),
+            label: Some("bounding_box_renderer_colored_render_pipeline_layout"),
             bind_group_layouts: &[&uniform_bind_group_layout],
             push_constant_ranges: &[],
         });
 
         device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("quad_renderer_colored_render_pipeline"),
+            label: Some("bounding_box_renderer_colored_render_pipeline"),
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &vertex_shader_module,
