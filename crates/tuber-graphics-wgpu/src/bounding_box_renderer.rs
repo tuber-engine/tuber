@@ -21,7 +21,7 @@ pub(crate) struct BoundingBoxRenderer {
 }
 
 impl BoundingBoxRenderer {
-    pub fn new(device: &Device, queue: &Queue, texture_format: &TextureFormat) -> Self {
+    pub fn new(device: &Device, texture_format: &TextureFormat) -> Self {
         let uniforms = Uniforms::new();
         let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("quad_renderer_uniform_buffer"),

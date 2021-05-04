@@ -77,7 +77,7 @@ impl LowLevelGraphicsAPI for GraphicsWGPU {
 
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
         let quad_renderer = QuadRenderer::new(&device, &queue, &format);
-        let bounding_box_renderer = BoundingBoxRenderer::new(&device, &queue, &format);
+        let bounding_box_renderer = BoundingBoxRenderer::new(&device, &format);
 
         self.wgpu_state = Some(WGPUState {
             _surface: surface,
