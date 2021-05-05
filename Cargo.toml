@@ -11,12 +11,6 @@ members = ["crates/*"]
 default = ["use-wgpu"]
 use-wgpu = ["tuber-graphics-wgpu"]
 
-[[example]]
-name = "basic-application"
-
-[[example]]
-name = "tennis"
-
 [dependencies]
 tuber-core = { path = "crates/tuber-core", version = "0.1.0" }
 tuber-graphics = { path = "crates/tuber-graphics", version = "0.1.0" }

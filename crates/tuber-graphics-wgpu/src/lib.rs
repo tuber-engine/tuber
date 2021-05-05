@@ -3,6 +3,7 @@ use crate::quad_renderer::QuadRenderer;
 use crate::texture::Texture;
 use futures;
 use std::collections::HashMap;
+use tuber_graphics::camera::OrthographicCamera;
 use tuber_graphics::texture::TextureData;
 use tuber_graphics::{LowLevelGraphicsAPI, QuadDescription, Transform2D, Window, WindowSize};
 
@@ -16,6 +17,7 @@ pub enum TuberGraphicsWGPUError {}
 pub struct GraphicsWGPU {
     wgpu_state: Option<WGPUState>,
     textures: HashMap<String, Texture>,
+    camera_id: Option<usize>,
 }
 
 pub struct WGPUState {
@@ -34,6 +36,7 @@ impl GraphicsWGPU {
         Self {
             wgpu_state: None,
             textures: HashMap::new(),
+            camera_id: None,
         }
     }
 }
@@ -161,6 +164,22 @@ impl LowLevelGraphicsAPI for GraphicsWGPU {
         let texture =
             Texture::from_texture_data(&state.device, &state.queue, texture_data).unwrap();
         self.textures.insert(identifier, texture);
+    }
+
+    fn update_camera(
+        &mut self,
+        camera_id: usize,
+        camera: &OrthographicCamera,
+        transform: &Transform2D,
+    ) {
+        let state = self.wgpu_state.as_mut().expect("Graphics is uninitialized");
+        self.camera_id = Some(camera_id);
+        state
+            .quad_renderer
+            .set_camera(&state.queue, camera, transform);
+        state
+            .bounding_box_renderer
+            .set_camera(&state.queue, camera, transform);
     }
 }
 

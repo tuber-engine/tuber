@@ -2,6 +2,7 @@ use crate::texture::Texture;
 use crate::Vertex;
 use cgmath::{Matrix4, Point2, Point3, SquareMatrix, Transform, Vector2, Vector3, Vector4};
 use std::collections::HashMap;
+use tuber_graphics::camera::OrthographicCamera;
 use tuber_graphics::texture::TextureData;
 use tuber_graphics::{QuadDescription, Transform2D};
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
@@ -17,7 +18,7 @@ pub(crate) struct BoundingBoxRenderer {
     vertex_buffer: wgpu::Buffer,
     vertex_count: usize,
     uniform_bind_group: wgpu::BindGroup,
-    _uniform_buffer: wgpu::Buffer,
+    uniform_buffer: wgpu::Buffer,
 }
 
 impl BoundingBoxRenderer {
@@ -68,7 +69,7 @@ impl BoundingBoxRenderer {
             vertex_buffer,
             vertex_count: 0,
             uniform_bind_group,
-            _uniform_buffer: uniform_buffer,
+            uniform_buffer,
         }
     }
 
@@ -188,6 +189,28 @@ impl BoundingBoxRenderer {
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
         render_pass.draw(0..self.vertex_count as u32, 0..1);
         self.vertex_count = 0;
+    }
+
+    pub fn set_camera(
+        &mut self,
+        queue: &Queue,
+        camera: &OrthographicCamera,
+        transform: &Transform2D,
+    ) {
+        let projection_matrix: Matrix4<f32> = cgmath::ortho(
+            camera.left,
+            camera.right,
+            camera.bottom,
+            camera.top,
+            camera.near,
+            camera.far,
+        );
+        let view_matrix: Matrix4<f32> = (*transform).into();
+        let view_proj = projection_matrix * view_matrix;
+        let uniform = Uniforms {
+            view_proj: view_proj.into(),
+        };
+        queue.write_buffer(&self.uniform_buffer, 0u64, bytemuck::cast_slice(&[uniform]));
     }
 }
 

@@ -1,7 +1,8 @@
 use crate::texture::Texture;
 use crate::Vertex;
-use cgmath::{Vector2, Vector3};
+use cgmath::{Matrix4, Transform, Vector2, Vector3};
 use std::collections::HashMap;
+use tuber_graphics::camera::OrthographicCamera;
 use tuber_graphics::texture::TextureData;
 use tuber_graphics::{QuadDescription, Transform2D};
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
@@ -22,7 +23,7 @@ pub(crate) struct QuadRenderer {
     colored_pipeline: wgpu::RenderPipeline,
     textured_pipeline: wgpu::RenderPipeline,
     uniform_bind_group: wgpu::BindGroup,
-    _uniform_buffer: wgpu::Buffer,
+    uniform_buffer: wgpu::Buffer,
     _texture_bind_group: wgpu::BindGroup,
     texture_bind_group_layout: wgpu::BindGroupLayout,
     texture: Texture,
@@ -181,7 +182,7 @@ impl QuadRenderer {
             colored_pipeline,
             textured_pipeline,
             uniform_bind_group,
-            _uniform_buffer: uniform_buffer,
+            uniform_buffer,
             texture: default_texture,
             _texture_bind_group: texture_bind_group,
             texture_bind_group_layout,
@@ -372,6 +373,28 @@ impl QuadRenderer {
             );
         }
         self.instances.clear();
+    }
+
+    pub fn set_camera(
+        &mut self,
+        queue: &Queue,
+        camera: &OrthographicCamera,
+        transform: &Transform2D,
+    ) {
+        let projection_matrix: Matrix4<f32> = cgmath::ortho(
+            camera.left,
+            camera.right,
+            camera.bottom,
+            camera.top,
+            camera.near,
+            camera.far,
+        );
+        let view_matrix: Matrix4<f32> = (*transform).into();
+        let view_proj = projection_matrix * view_matrix.inverse_transform().unwrap();
+        let uniform = Uniforms {
+            view_proj: view_proj.into(),
+        };
+        queue.write_buffer(&self.uniform_buffer, 0u64, bytemuck::cast_slice(&[uniform]));
     }
 }
 

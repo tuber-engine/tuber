@@ -1,3 +1,4 @@
+use crate::camera::{Active, OrthographicCamera};
 use crate::texture::TextureData;
 use cgmath::{vec3, Deg};
 use image::ImageError;
@@ -5,6 +6,7 @@ use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use tuber_ecs::ecs::Ecs;
 use tuber_ecs::query::accessors::R;
 use tuber_ecs::system::SystemBundle;
+use tuber_ecs::EntityIndex;
 
 #[derive(Debug)]
 pub enum GraphicsError {
@@ -12,6 +14,7 @@ pub enum GraphicsError {
     ImageDecodeError(ImageError),
 }
 
+pub mod camera;
 pub mod texture;
 
 pub type Color = (f32, f32, f32);
@@ -141,6 +144,14 @@ impl Graphics {
 
 pub fn render_system(ecs: &mut Ecs) {
     let mut graphics = ecs.resource_mut::<Graphics>();
+
+    let (camera_id, (camera, _, camera_transform)) = ecs
+        .query_one::<(R<OrthographicCamera>, R<Active>, R<Transform2D>)>()
+        .expect("There is no camera");
+    graphics
+        .graphics_impl
+        .update_camera(camera_id, &camera, &camera_transform);
+
     for (_, (rectangle_shape, transform)) in ecs.query::<(R<RectangleShape>, R<Transform2D>)>() {
         graphics.prepare_rectangle(&rectangle_shape, &transform);
     }
@@ -163,6 +174,12 @@ pub trait LowLevelGraphicsAPI {
     );
     fn is_texture_in_memory(&self, texture_identifier: &str) -> bool;
     fn load_texture(&mut self, texture_data: TextureData);
+    fn update_camera(
+        &mut self,
+        camera_id: EntityIndex,
+        camera: &OrthographicCamera,
+        transform: &Transform2D,
+    );
 }
 
 pub struct QuadDescription {

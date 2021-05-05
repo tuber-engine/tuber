@@ -1,5 +1,6 @@
 use rand::{thread_rng, Rng};
 use std::collections::VecDeque;
+use tuber::graphics::camera::{Active, OrthographicCamera};
 use tuber::graphics::{Graphics, Sprite, Transform2D};
 use tuber::graphics_wgpu::GraphicsWGPU;
 use tuber::keyboard::Key;
@@ -41,6 +42,22 @@ struct Score(u32);
 fn main() -> Result<()> {
     let mut engine = Engine::new();
 
+    engine.ecs().insert((
+        OrthographicCamera {
+            left: 0.0,
+            right: 800.0,
+            top: 0.0,
+            bottom: 600.0,
+            near: -100.0,
+            far: 100.0,
+        },
+        Transform2D {
+            translation: (0.0, 0.0),
+            ..Default::default()
+        },
+        Active,
+    ));
+
     engine.ecs().insert_resource(PivotList(VecDeque::new()));
     engine.ecs().insert_resource(Score(0));
 
@@ -48,8 +65,6 @@ fn main() -> Result<()> {
     spawn_apple(engine.ecs());
 
     let mut graphics = Graphics::new(Box::new(GraphicsWGPU::new()));
-    graphics.set_bounding_box_rendering(true);
-
     let mut bundle = SystemBundle::new();
     bundle.add_system(move_head_system);
     bundle.add_system(move_body_parts_system);
