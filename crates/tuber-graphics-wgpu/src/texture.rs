@@ -96,7 +96,7 @@ impl Texture {
                     resource: wgpu::BindingResource::Sampler(&sampler),
                 },
             ],
-            label: Some("t".into()),
+            label: Some("texture_bind_group".into()),
         });
 
         Ok(Self {

@@ -1,4 +1,5 @@
 use tuber::graphics::camera::{Active, OrthographicCamera};
+use tuber::graphics::texture::{TextureRegion, TextureSource};
 use tuber::graphics::{Graphics, Sprite, Transform2D};
 use tuber::graphics_wgpu::GraphicsWGPU;
 use tuber::*;
@@ -30,7 +31,7 @@ fn main() -> Result<()> {
         Sprite {
             width: 50.0,
             height: 50.0,
-            texture: "examples/sprite/sprite.png".to_string(),
+            texture: "examples/sprite/sprite.png".into(),
         },
     ));
 
@@ -42,7 +43,7 @@ fn main() -> Result<()> {
         Sprite {
             width: 50.0,
             height: 50.0,
-            texture: "examples/sprite/sprite2.png".to_string(),
+            texture: "examples/sprite/sprite2.png".into(),
         },
     ));
 
@@ -54,7 +55,22 @@ fn main() -> Result<()> {
         Sprite {
             width: 50.0,
             height: 50.0,
-            texture: "fqgqgqgpng".to_string(),
+            texture: "fqgqgqgpng".into(),
+        },
+    ));
+
+    engine.ecs().insert((
+        Transform2D {
+            translation: (250.0, 350.0),
+            ..Default::default()
+        },
+        Sprite {
+            width: 100.0,
+            height: 100.0,
+            texture: TextureSource::TextureRegion(
+                "mkgskgsmlgk".into(),
+                TextureRegion::new(0.0, 0.0, 16.0, 16.0),
+            ),
         },
     ));
 

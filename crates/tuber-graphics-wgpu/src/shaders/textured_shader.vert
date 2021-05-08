@@ -10,6 +10,7 @@ layout(location=5) in vec4 model_matrix_2;
 layout(location=6) in vec4 model_matrix_3;
 layout(location=7) in vec3 color;
 layout(location=8) in vec2 size;
+layout(location=9) in vec4 texture_rectangle;
 
 layout(location=0) out vec3 v_color;
 layout(location=1) out vec2 v_tex_coords;
@@ -28,6 +29,6 @@ void main() {
     );
 
     v_color = a_color;
-    v_tex_coords = a_tex_coords;
+    v_tex_coords = vec2(texture_rectangle.x + a_tex_coords.x * texture_rectangle.z, texture_rectangle.y + a_tex_coords.y * texture_rectangle.w);
     gl_Position = u_view_proj * model_matrix * vec4(a_position.x * size.x, a_position.y * size.y, 0.0, 1.0);
 }

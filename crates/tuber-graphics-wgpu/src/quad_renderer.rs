@@ -1,6 +1,6 @@
 use crate::texture::Texture;
 use crate::Vertex;
-use cgmath::{Matrix4, Transform, Vector2, Vector3};
+use cgmath::{Matrix4, Transform, Vector2, Vector3, Vector4, Zero};
 use std::collections::HashMap;
 use tuber_graphics::camera::OrthographicCamera;
 use tuber_graphics::texture::TextureData;
@@ -316,6 +316,10 @@ impl QuadRenderer {
                 x: quad.width,
                 y: quad.height,
             },
+            texture_rectangle: match &quad.texture {
+                Some(texture_description) => texture_description.texture_region.into(),
+                None => Vector4::zero(),
+            },
         };
 
         queue.write_buffer(
@@ -325,7 +329,9 @@ impl QuadRenderer {
         );
 
         let instance_metadata = if let Some(texture_path) = &quad.texture {
-            let texture = textures.get(texture_path).unwrap_or(&self.texture);
+            let texture = textures
+                .get(&texture_path.identifier)
+                .unwrap_or(&self.texture);
             QuadInstanceMetadata {
                 instance_bind_group: Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
                     label: Some("quad_renderer_textured_instance_bind_group"),
@@ -402,6 +408,7 @@ struct Instance {
     model: cgmath::Matrix4<f32>,
     color: cgmath::Vector3<f32>,
     size: cgmath::Vector2<f32>,
+    texture_rectangle: cgmath::Vector4<f32>,
 }
 
 impl Instance {
@@ -410,6 +417,12 @@ impl Instance {
             model: self.model.into(),
             color: [self.color.x, self.color.y, self.color.z],
             size: [self.size.x, self.size.y],
+            texture_rectangle: [
+                self.texture_rectangle.x,
+                self.texture_rectangle.y,
+                self.texture_rectangle.z,
+                self.texture_rectangle.w,
+            ],
         }
     }
 }
@@ -420,6 +433,7 @@ struct InstanceRaw {
     model: [[f32; 4]; 4],
     color: [f32; 3],
     size: [f32; 2],
+    texture_rectangle: [f32; 4],
 }
 
 impl InstanceRaw {
@@ -458,6 +472,11 @@ impl InstanceRaw {
                     format: wgpu::VertexFormat::Float2,
                     offset: mem::size_of::<[f32; 19]>() as wgpu::BufferAddress,
                     shader_location: 8,
+                },
+                wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float4,
+                    offset: mem::size_of::<[f32; 21]>() as wgpu::BufferAddress,
+                    shader_location: 9,
                 },
             ],
         }

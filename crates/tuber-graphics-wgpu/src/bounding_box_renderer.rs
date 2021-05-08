@@ -1,14 +1,11 @@
-use crate::texture::Texture;
 use crate::Vertex;
-use cgmath::{Matrix4, Point2, Point3, SquareMatrix, Transform, Vector2, Vector3, Vector4};
-use std::collections::HashMap;
+use cgmath::{Matrix4, Point3, Transform};
 use tuber_graphics::camera::OrthographicCamera;
-use tuber_graphics::texture::TextureData;
-use tuber_graphics::{QuadDescription, Transform2D};
-use wgpu::util::{BufferInitDescriptor, DeviceExt};
+use tuber_graphics::Transform2D;
+use wgpu::util::DeviceExt;
 use wgpu::{
     BindGroupLayout, BufferDescriptor, BufferUsage, Device, FragmentState, Queue, RenderPass,
-    RenderPipeline, ShaderModule, TextureFormat,
+    RenderPipeline, TextureFormat,
 };
 
 const MAX_VERTEX_COUNT: u64 = 100_000;

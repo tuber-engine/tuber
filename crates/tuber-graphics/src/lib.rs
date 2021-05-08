@@ -1,8 +1,9 @@
 use crate::camera::{Active, OrthographicCamera};
-use crate::texture::TextureData;
+use crate::texture::{TextureData, TextureRegion, TextureSource};
 use cgmath::{vec3, Deg};
 use image::ImageError;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
+use std::collections::HashMap;
 use tuber_ecs::ecs::Ecs;
 use tuber_ecs::query::accessors::R;
 use tuber_ecs::system::SystemBundle;
@@ -22,7 +23,7 @@ pub type Color = (f32, f32, f32);
 pub struct Sprite {
     pub width: f32,
     pub height: f32,
-    pub texture: String,
+    pub texture: TextureSource,
 }
 
 pub struct RectangleShape {
@@ -74,8 +75,14 @@ unsafe impl HasRawWindowHandle for Window<'_> {
     }
 }
 
+pub struct TextureMetadata {
+    pub width: u32,
+    pub height: u32,
+}
+
 pub struct Graphics {
     graphics_impl: Box<dyn LowLevelGraphicsAPI>,
+    texture_metadata: HashMap<String, TextureMetadata>,
     bounding_box_rendering: bool,
 }
 
@@ -83,6 +90,7 @@ impl Graphics {
     pub fn new(graphics_impl: Box<dyn LowLevelGraphicsAPI>) -> Self {
         Self {
             graphics_impl,
+            texture_metadata: HashMap::new(),
             bounding_box_rendering: false,
         }
     }
@@ -112,18 +120,35 @@ impl Graphics {
         sprite: &Sprite,
         transform: &Transform2D,
     ) -> Result<(), GraphicsError> {
-        if !self.graphics_impl.is_texture_in_memory(&sprite.texture) {
-            if let Ok(texture_data) = TextureData::from_file(&sprite.texture) {
+        let texture = sprite.texture.texture_identifier();
+        if !self.graphics_impl.is_texture_in_memory(&texture) {
+            if let Ok(texture_data) = TextureData::from_file(&texture) {
+                self.texture_metadata.insert(
+                    texture.clone(),
+                    TextureMetadata {
+                        width: texture_data.size.0,
+                        height: texture_data.size.1,
+                    },
+                );
                 self.graphics_impl.load_texture(texture_data);
             }
         }
 
+        let (texture_width, texture_height) = match self.texture_metadata.get(&texture) {
+            Some(metadata) => (metadata.width, metadata.height),
+            None => (32, 32),
+        };
         self.graphics_impl.prepare_quad(
             &QuadDescription {
                 width: sprite.width,
                 height: sprite.height,
                 color: (1.0, 1.0, 1.0),
-                texture: Some(sprite.texture.clone()),
+                texture: Some(TextureDescription {
+                    identifier: sprite.texture.texture_identifier(),
+                    texture_region: sprite
+                        .texture
+                        .normalized_texture_region(texture_width, texture_height),
+                }),
             },
             transform,
             self.bounding_box_rendering,
@@ -186,5 +211,10 @@ pub struct QuadDescription {
     pub width: f32,
     pub height: f32,
     pub color: Color,
-    pub texture: Option<String>,
+    pub texture: Option<TextureDescription>,
+}
+
+pub struct TextureDescription {
+    pub identifier: String,
+    pub texture_region: TextureRegion,
 }
