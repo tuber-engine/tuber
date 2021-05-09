@@ -1,6 +1,6 @@
 use tuber::graphics::camera::{Active, OrthographicCamera};
 use tuber::graphics::texture::{TextureRegion, TextureSource};
-use tuber::graphics::{Graphics, Sprite, Transform2D};
+use tuber::graphics::{AnimatedSprite, Graphics, Sprite, Transform2D};
 use tuber::graphics_wgpu::GraphicsWGPU;
 use tuber::*;
 
@@ -88,6 +88,7 @@ fn main() -> Result<()> {
             ),
         },
     ));
+
     engine.ecs().insert((
         Transform2D {
             translation: (475.0, 400.0),
@@ -100,6 +101,27 @@ fn main() -> Result<()> {
                 "examples/sprite/texture-atlas.json".into(),
                 "house".into(),
             ),
+        },
+    ));
+
+    engine.ecs().insert((
+        Transform2D {
+            translation: (0.0, 0.0),
+            ..Default::default()
+        },
+        AnimatedSprite {
+            width: 100.0,
+            height: 100.0,
+            texture: TextureSource::WholeTexture("examples/sprite/animated_sprite.png".into()),
+            keyframes: vec![
+                TextureRegion::new(0.0, 0.0, 16.0, 16.0),
+                TextureRegion::new(16.0, 0.0, 16.0, 16.0),
+                TextureRegion::new(32.0, 0.0, 16.0, 16.0),
+                TextureRegion::new(48.0, 0.0, 16.0, 16.0),
+                TextureRegion::new(64.0, 0.0, 16.0, 16.0),
+                TextureRegion::new(80.0, 0.0, 16.0, 16.0),
+            ],
+            current_keyframe: 0,
         },
     ));
 

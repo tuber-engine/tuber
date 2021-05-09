@@ -105,10 +105,10 @@ where
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub struct TextureRegion {
-    x: f32,
-    y: f32,
-    width: f32,
-    height: f32,
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
 }
 
 impl TextureRegion {
@@ -118,6 +118,17 @@ impl TextureRegion {
             y,
             width,
             height,
+        }
+    }
+
+    pub fn normalize(self, texture_width: u32, texture_height: u32) -> Self {
+        let texture_width = texture_width as f32;
+        let texture_height = texture_height as f32;
+        Self {
+            x: self.x / texture_width,
+            y: self.y / texture_height,
+            width: self.width / texture_width,
+            height: self.height / texture_height,
         }
     }
 }

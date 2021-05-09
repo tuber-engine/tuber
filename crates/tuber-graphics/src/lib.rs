@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
 use tuber_ecs::ecs::Ecs;
-use tuber_ecs::query::accessors::R;
+use tuber_ecs::query::accessors::{R, W};
 use tuber_ecs::system::SystemBundle;
 use tuber_ecs::EntityIndex;
 
@@ -29,6 +29,14 @@ pub struct Sprite {
     pub width: f32,
     pub height: f32,
     pub texture: TextureSource,
+}
+
+pub struct AnimatedSprite {
+    pub width: f32,
+    pub height: f32,
+    pub texture: TextureSource,
+    pub keyframes: Vec<TextureRegion>,
+    pub current_keyframe: usize,
 }
 
 pub struct RectangleShape {
@@ -166,6 +174,53 @@ impl Graphics {
         }
     }
 
+    fn prepare_animated_sprite(
+        &mut self,
+        animated_sprite: &AnimatedSprite,
+        transform: &Transform2D,
+    ) -> Result<(), GraphicsError> {
+        if let TextureSource::TextureAtlas(texture_atlas_identifier, _) = &animated_sprite.texture {
+            if !self.texture_atlases.contains_key(texture_atlas_identifier) {
+                self.load_texture_atlas(texture_atlas_identifier)?;
+            }
+        }
+
+        let texture = animated_sprite
+            .texture
+            .texture_identifier(&self.texture_atlases);
+        if !self.graphics_impl.is_texture_in_memory(&texture) {
+            self.load_texture(&texture);
+        }
+
+        let (texture_width, texture_height) = match self.texture_metadata.get(&texture) {
+            Some(metadata) => (metadata.width, metadata.height),
+            None => (32, 32),
+        };
+
+        let current_keyframe = animated_sprite.keyframes[animated_sprite.current_keyframe];
+        self.graphics_impl.prepare_quad(
+            &QuadDescription {
+                width: animated_sprite.width,
+                height: animated_sprite.height,
+                color: (1.0, 1.0, 1.0),
+                texture: Some(TextureDescription {
+                    identifier: texture,
+                    texture_region: TextureRegion::new(
+                        current_keyframe.x,
+                        current_keyframe.y,
+                        current_keyframe.width,
+                        current_keyframe.height,
+                    )
+                    .normalize(texture_width, texture_height),
+                }),
+            },
+            transform,
+            self.bounding_box_rendering,
+        );
+
+        Ok(())
+    }
+
     fn prepare_sprite(
         &mut self,
         sprite: &Sprite,
@@ -208,6 +263,7 @@ impl Graphics {
 
     pub fn default_system_bundle(&mut self) -> SystemBundle {
         let mut system_bundle = SystemBundle::new();
+        system_bundle.add_system(sprite_animation_step_system);
         system_bundle.add_system(render_system);
         system_bundle
     }
@@ -231,11 +287,21 @@ pub fn render_system(ecs: &mut Ecs) {
         graphics.prepare_rectangle(&rectangle_shape, &transform);
     }
     for (_, (sprite, transform)) in ecs.query::<(R<Sprite>, R<Transform2D>)>() {
-        if let Err(e) = graphics.prepare_sprite(&sprite, &transform) {
-            println!("{:?}", e);
-        }
+        graphics.prepare_sprite(&sprite, &transform).unwrap();
+    }
+    for (_, (animated_sprite, transform)) in ecs.query::<(R<AnimatedSprite>, R<Transform2D>)>() {
+        graphics
+            .prepare_animated_sprite(&animated_sprite, &transform)
+            .unwrap();
     }
     graphics.render();
+}
+
+pub fn sprite_animation_step_system(ecs: &mut Ecs) {
+    for (_, (mut animated_sprite,)) in ecs.query::<(W<AnimatedSprite>,)>() {
+        animated_sprite.current_keyframe =
+            (animated_sprite.current_keyframe + 1) % animated_sprite.keyframes.len();
+    }
 }
 
 pub trait LowLevelGraphicsAPI {
