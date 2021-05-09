@@ -1,5 +1,7 @@
-use crate::GraphicsError;
 use crate::GraphicsError::{ImageDecodeError, TextureFileOpenFailure};
+use crate::{GraphicsError, TextureAtlas};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 pub struct TextureData {
     pub identifier: String,
@@ -38,13 +40,23 @@ impl TextureData {
 pub enum TextureSource {
     WholeTexture(String),
     TextureRegion(String, TextureRegion),
+    TextureAtlas(String, String),
 }
 
 impl TextureSource {
-    pub(crate) fn texture_identifier(&self) -> String {
+    pub(crate) fn texture_identifier(
+        &self,
+        texture_atlases: &HashMap<String, TextureAtlas>,
+    ) -> String {
         match self {
             TextureSource::WholeTexture(texture_identifier) => texture_identifier,
             TextureSource::TextureRegion(texture_identifier, _) => texture_identifier,
+            TextureSource::TextureAtlas(texture_atlas_identifier, _) => {
+                &texture_atlases
+                    .get(texture_atlas_identifier)
+                    .expect("Texture atlas not found")
+                    .texture_identifier
+            }
         }
         .into()
     }
@@ -53,6 +65,7 @@ impl TextureSource {
         &self,
         texture_width: u32,
         texture_height: u32,
+        texture_atlases: &HashMap<String, TextureAtlas>,
     ) -> TextureRegion {
         match self {
             TextureSource::WholeTexture(_) => TextureRegion::new(0.0, 0.0, 1.0, 1.0),
@@ -62,6 +75,21 @@ impl TextureSource {
                 width: region.width / texture_width as f32,
                 height: region.height / texture_height as f32,
             },
+            TextureSource::TextureAtlas(texture_atlas, texture_name) => {
+                let region = texture_atlases
+                    .get(texture_atlas)
+                    .expect("Texture atlas not found")
+                    .textures
+                    .get(texture_name)
+                    .expect("Texture not found in atlas");
+
+                TextureRegion {
+                    x: region.x / texture_width as f32,
+                    y: region.y / texture_height as f32,
+                    width: region.width / texture_width as f32,
+                    height: region.height / texture_height as f32,
+                }
+            }
         }
     }
 }
@@ -75,7 +103,7 @@ where
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub struct TextureRegion {
     x: f32,
     y: f32,

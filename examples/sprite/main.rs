@@ -74,6 +74,35 @@ fn main() -> Result<()> {
         },
     ));
 
+    engine.ecs().insert((
+        Transform2D {
+            translation: (375.0, 350.0),
+            ..Default::default()
+        },
+        Sprite {
+            width: 100.0,
+            height: 100.0,
+            texture: TextureSource::TextureAtlas(
+                "examples/sprite/texture-atlas.json".into(),
+                "tree".into(),
+            ),
+        },
+    ));
+    engine.ecs().insert((
+        Transform2D {
+            translation: (475.0, 400.0),
+            ..Default::default()
+        },
+        Sprite {
+            width: 50.0,
+            height: 50.0,
+            texture: TextureSource::TextureAtlas(
+                "examples/sprite/texture-atlas.json".into(),
+                "house".into(),
+            ),
+        },
+    ));
+
     let mut graphics = Graphics::new(Box::new(GraphicsWGPU::new()));
     engine.add_system_bundle(graphics.default_system_bundle());
 

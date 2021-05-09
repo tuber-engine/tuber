@@ -3,7 +3,10 @@ use crate::texture::{TextureData, TextureRegion, TextureSource};
 use cgmath::{vec3, Deg};
 use image::ImageError;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::BufReader;
 use tuber_ecs::ecs::Ecs;
 use tuber_ecs::query::accessors::R;
 use tuber_ecs::system::SystemBundle;
@@ -12,7 +15,9 @@ use tuber_ecs::EntityIndex;
 #[derive(Debug)]
 pub enum GraphicsError {
     TextureFileOpenFailure(std::io::Error),
+    AtlasDescriptionFileOpenError(std::io::Error),
     ImageDecodeError(ImageError),
+    SerdeError(serde_json::error::Error),
 }
 
 pub mod camera;
@@ -80,9 +85,22 @@ pub struct TextureMetadata {
     pub height: u32,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct TextureAtlas {
+    texture_identifier: String,
+    textures: HashMap<String, TextureRegion>,
+}
+
+impl TextureAtlas {
+    pub fn texture_region(&self, texture_name: &str) -> Option<TextureRegion> {
+        self.textures.get(texture_name).cloned()
+    }
+}
+
 pub struct Graphics {
     graphics_impl: Box<dyn LowLevelGraphicsAPI>,
     texture_metadata: HashMap<String, TextureMetadata>,
+    texture_atlases: HashMap<String, TextureAtlas>,
     bounding_box_rendering: bool,
 }
 
@@ -91,6 +109,7 @@ impl Graphics {
         Self {
             graphics_impl,
             texture_metadata: HashMap::new(),
+            texture_atlases: HashMap::new(),
             bounding_box_rendering: false,
         }
     }
@@ -115,23 +134,52 @@ impl Graphics {
         );
     }
 
+    fn load_texture_atlas(&mut self, texture_atlas_identifier: &str) -> Result<(), GraphicsError> {
+        let atlas_description_file = File::open(texture_atlas_identifier)
+            .map_err(|e| GraphicsError::AtlasDescriptionFileOpenError(e))?;
+        let reader = BufReader::new(atlas_description_file);
+        let texture_atlas: TextureAtlas =
+            serde_json::from_reader(reader).map_err(|e| GraphicsError::SerdeError(e))?;
+
+        if !self
+            .graphics_impl
+            .is_texture_in_memory(&texture_atlas.texture_identifier)
+        {
+            self.load_texture(&texture_atlas.texture_identifier);
+        }
+
+        self.texture_atlases
+            .insert(texture_atlas_identifier.to_owned(), texture_atlas);
+        Ok(())
+    }
+
+    fn load_texture(&mut self, texture: &str) {
+        if let Ok(texture_data) = TextureData::from_file(&texture) {
+            self.texture_metadata.insert(
+                texture.to_owned(),
+                TextureMetadata {
+                    width: texture_data.size.0,
+                    height: texture_data.size.1,
+                },
+            );
+            self.graphics_impl.load_texture(texture_data);
+        }
+    }
+
     fn prepare_sprite(
         &mut self,
         sprite: &Sprite,
         transform: &Transform2D,
     ) -> Result<(), GraphicsError> {
-        let texture = sprite.texture.texture_identifier();
-        if !self.graphics_impl.is_texture_in_memory(&texture) {
-            if let Ok(texture_data) = TextureData::from_file(&texture) {
-                self.texture_metadata.insert(
-                    texture.clone(),
-                    TextureMetadata {
-                        width: texture_data.size.0,
-                        height: texture_data.size.1,
-                    },
-                );
-                self.graphics_impl.load_texture(texture_data);
+        if let TextureSource::TextureAtlas(texture_atlas_identifier, _) = &sprite.texture {
+            if !self.texture_atlases.contains_key(texture_atlas_identifier) {
+                self.load_texture_atlas(texture_atlas_identifier)?;
             }
+        }
+
+        let texture = sprite.texture.texture_identifier(&self.texture_atlases);
+        if !self.graphics_impl.is_texture_in_memory(&texture) {
+            self.load_texture(&texture);
         }
 
         let (texture_width, texture_height) = match self.texture_metadata.get(&texture) {
@@ -144,10 +192,12 @@ impl Graphics {
                 height: sprite.height,
                 color: (1.0, 1.0, 1.0),
                 texture: Some(TextureDescription {
-                    identifier: sprite.texture.texture_identifier(),
-                    texture_region: sprite
-                        .texture
-                        .normalized_texture_region(texture_width, texture_height),
+                    identifier: texture,
+                    texture_region: sprite.texture.normalized_texture_region(
+                        texture_width,
+                        texture_height,
+                        &self.texture_atlases,
+                    ),
                 }),
             },
             transform,

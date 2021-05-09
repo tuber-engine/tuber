@@ -1,0 +1,17 @@
+{
+    "texture_identifier": "examples/sprite/texture-atlas.png",
+    "textures": {
+        "house": {
+            "x": 16,
+            "y": 16,
+            "width": 16,
+            "height": 16
+        },
+        "tree": {
+            "x": 32,
+            "y": 32,
+            "width": 32,
+            "height": 32
+        }
+    }
+}

@@ -12,3 +12,5 @@ raw-window-handle = "0.3.3"
 image = "0.23.14"
 cgmath = "0.18.0"
 bytemuck = { version =  "1.5", features = [ "derive" ] }
+serde = {version = "1.0", features = ["derive"]}
+serde_json = "1.0"
