@@ -74,7 +74,7 @@ impl LowLevelGraphicsAPI for GraphicsWGPU {
             format: adapter.get_swap_chain_preferred_format(&surface),
             width: window_size.0,
             height: window_size.1,
-            present_mode: wgpu::PresentMode::Fifo,
+            present_mode: wgpu::PresentMode::Immediate,
         };
         let format = sc_desc.format;
 

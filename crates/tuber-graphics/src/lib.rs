@@ -264,7 +264,6 @@ impl Graphics {
     pub fn default_system_bundle(&mut self) -> SystemBundle {
         let mut system_bundle = SystemBundle::new();
         system_bundle.add_system(sprite_animation_step_system);
-        system_bundle.add_system(render_system);
         system_bundle
     }
 
@@ -273,7 +272,7 @@ impl Graphics {
     }
 }
 
-pub fn render_system(ecs: &mut Ecs) {
+pub fn render(ecs: &mut Ecs) {
     let mut graphics = ecs.resource_mut::<Graphics>();
 
     let (camera_id, (camera, _, camera_transform)) = ecs

@@ -1,8 +1,9 @@
 use std::convert::{TryFrom, TryInto};
+use std::time::Instant;
 use tuber_core::input::keyboard::Key;
 use tuber_core::input::Input;
 use tuber_core::{Engine, Result as TuberResult, TuberRunner};
-use tuber_graphics::{Graphics, Window};
+use tuber_graphics::{render, Graphics, Window};
 use winit::event::{ElementState, KeyboardInput, VirtualKeyCode};
 use winit::{
     event::{Event, WindowEvent},
@@ -18,6 +19,7 @@ enum TuberWinitError {
 pub struct WinitTuberRunner;
 impl TuberRunner for WinitTuberRunner {
     fn run(&mut self, mut engine: Engine, mut graphics: Graphics) -> TuberResult<()> {
+        let mut start_time = Instant::now();
         let event_loop = EventLoop::new();
         let window = WindowBuilder::new()
             .with_title("tuber")
@@ -48,7 +50,18 @@ impl TuberRunner for WinitTuberRunner {
                     }
                 }
                 Event::MainEventsCleared => {
+                    start_time = Instant::now();
                     engine.step();
+                    window.request_redraw();
+                }
+                Event::RedrawRequested(_) => {
+                    render(engine.ecs());
+                    let current_time = Instant::now();
+                    println!(
+                        "Framerate: {}",
+                        1.0 / (current_time.duration_since(start_time).as_secs_f32())
+                    );
+                    start_time = current_time;
                 }
                 _ => (),
             }
