@@ -12,8 +12,8 @@ use winit::{
 };
 
 enum TuberWinitError {
-    UknownVirtualKeycode(VirtualKeyCode),
-    UknownKeyboardInput(KeyboardInput),
+    UnknownVirtualKeycode(VirtualKeyCode),
+    UnknownKeyboardInput(KeyboardInput),
 }
 
 pub struct WinitTuberRunner;
@@ -89,7 +89,7 @@ impl TryFrom<KeyboardInputWrapper> for Input {
             } if state == ElementState::Released && virtual_keycode.is_some() => Ok(Input::KeyUp(
                 VirtualKeyCodeWrapper(virtual_keycode.unwrap()).try_into()?,
             )),
-            input => Err(TuberWinitError::UknownKeyboardInput(input)),
+            input => Err(TuberWinitError::UnknownKeyboardInput(input)),
         }
     }
 }
@@ -143,7 +143,7 @@ impl TryFrom<VirtualKeyCodeWrapper> for Key {
             VirtualKeyCode::LControl => Ok(Key::LControl),
             VirtualKeyCode::RControl => Ok(Key::RControl),
             VirtualKeyCode::Escape => Ok(Key::Escape),
-            virtual_keycode => Err(TuberWinitError::UknownVirtualKeycode(virtual_keycode)),
+            virtual_keycode => Err(TuberWinitError::UnknownVirtualKeycode(virtual_keycode)),
         }
     }
 }
