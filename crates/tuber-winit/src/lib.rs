@@ -1,5 +1,5 @@
 use std::convert::{TryFrom, TryInto};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tuber_core::input::keyboard::Key;
 use tuber_core::input::Input;
 use tuber_core::{Engine, Result as TuberResult, TuberRunner};
@@ -19,7 +19,14 @@ enum TuberWinitError {
 pub struct WinitTuberRunner;
 impl TuberRunner for WinitTuberRunner {
     fn run(&mut self, mut engine: Engine, mut graphics: Graphics) -> TuberResult<()> {
-        let mut start_time = Instant::now();
+        const UPDATE_TARGET_FPS: u32 = 60;
+        const RENDER_TARGET_FPS: u32 = 60;
+        const DELTA_TIME: f64 = 1.0 / UPDATE_TARGET_FPS as f64;
+        const TIME_BETWEEN_FRAME: f64 = 1.0 / RENDER_TARGET_FPS as f64;
+        let mut current_time = Instant::now();
+        let mut accumulator = 0f64;
+        let mut last_render_time = Instant::now();
+
         let event_loop = EventLoop::new();
         let window = WindowBuilder::new()
             .with_title("tuber")
@@ -50,18 +57,29 @@ impl TuberRunner for WinitTuberRunner {
                     }
                 }
                 Event::MainEventsCleared => {
-                    start_time = Instant::now();
-                    engine.step();
-                    window.request_redraw();
+                    let new_time = Instant::now();
+                    let frame_time = new_time.duration_since(current_time).as_secs_f64();
+                    current_time = new_time;
+                    accumulator += frame_time;
+                    while accumulator >= DELTA_TIME {
+                        engine.step(DELTA_TIME);
+                        accumulator -= DELTA_TIME;
+                    }
+
+                    if last_render_time.elapsed().as_secs_f64() >= TIME_BETWEEN_FRAME {
+                        window.request_redraw();
+                    }
                 }
                 Event::RedrawRequested(_) => {
+                    let current_render_time = Instant::now();
                     render(engine.ecs());
-                    let current_time = Instant::now();
                     println!(
                         "Framerate: {}",
-                        1.0 / (current_time.duration_since(start_time).as_secs_f32())
+                        1.0 / (current_render_time
+                            .duration_since(last_render_time)
+                            .as_secs_f64())
                     );
-                    start_time = current_time;
+                    last_render_time = current_render_time;
                 }
                 _ => (),
             }

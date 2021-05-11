@@ -6,6 +6,8 @@ use tuber_graphics::Graphics;
 
 pub mod input;
 
+pub struct DeltaTime(f64);
+
 pub struct Engine {
     ecs: Ecs,
     system_bundles: Vec<SystemBundle>,
@@ -34,7 +36,8 @@ impl Engine {
         self.system_bundles.push(system_bundle);
     }
 
-    pub fn step(&mut self) {
+    pub fn step(&mut self, delta_time: f64) {
+        self.ecs.insert_resource(DeltaTime(delta_time));
         for bundle in &mut self.system_bundles {
             bundle.step(&mut self.ecs);
         }
@@ -42,7 +45,7 @@ impl Engine {
 
     pub fn ignite(mut self) -> Result<()> {
         loop {
-            self.step();
+            self.step(1.0);
         }
     }
 }
