@@ -1,6 +1,7 @@
+use std::time::Instant;
 use tuber::graphics::camera::{Active, OrthographicCamera};
 use tuber::graphics::texture::{TextureRegion, TextureSource};
-use tuber::graphics::{AnimatedSprite, Graphics, Sprite, Transform2D};
+use tuber::graphics::{AnimatedSprite, AnimationState, Graphics, Sprite, Transform2D};
 use tuber::graphics_wgpu::GraphicsWGPU;
 use tuber::*;
 
@@ -113,15 +114,20 @@ fn main() -> Result<()> {
             width: 100.0,
             height: 100.0,
             texture: TextureSource::WholeTexture("examples/sprite/animated_sprite.png".into()),
-            keyframes: vec![
-                TextureRegion::new(0.0, 0.0, 16.0, 16.0),
-                TextureRegion::new(16.0, 0.0, 16.0, 16.0),
-                TextureRegion::new(32.0, 0.0, 16.0, 16.0),
-                TextureRegion::new(48.0, 0.0, 16.0, 16.0),
-                TextureRegion::new(64.0, 0.0, 16.0, 16.0),
-                TextureRegion::new(80.0, 0.0, 16.0, 16.0),
-            ],
-            current_keyframe: 0,
+
+            animation_state: AnimationState {
+                keyframes: vec![
+                    TextureRegion::new(0.0, 0.0, 16.0, 16.0),
+                    TextureRegion::new(16.0, 0.0, 16.0, 16.0),
+                    TextureRegion::new(32.0, 0.0, 16.0, 16.0),
+                    TextureRegion::new(48.0, 0.0, 16.0, 16.0),
+                    TextureRegion::new(64.0, 0.0, 16.0, 16.0),
+                    TextureRegion::new(80.0, 0.0, 16.0, 16.0),
+                ],
+                current_keyframe: 0,
+                start_instant: Instant::now(),
+                frame_duration: 100,
+            },
         },
     ));
 

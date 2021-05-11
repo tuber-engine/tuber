@@ -1,5 +1,5 @@
 use std::convert::{TryFrom, TryInto};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use tuber_core::input::keyboard::Key;
 use tuber_core::input::Input;
 use tuber_core::{Engine, Result as TuberResult, TuberRunner};
@@ -19,7 +19,7 @@ enum TuberWinitError {
 pub struct WinitTuberRunner;
 impl TuberRunner for WinitTuberRunner {
     fn run(&mut self, mut engine: Engine, mut graphics: Graphics) -> TuberResult<()> {
-        const UPDATE_TARGET_FPS: u32 = 60;
+        const UPDATE_TARGET_FPS: u32 = 100;
         const RENDER_TARGET_FPS: u32 = 60;
         const DELTA_TIME: f64 = 1.0 / UPDATE_TARGET_FPS as f64;
         const TIME_BETWEEN_FRAME: f64 = 1.0 / RENDER_TARGET_FPS as f64;

@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
+use std::time::Instant;
 use tuber_ecs::ecs::Ecs;
 use tuber_ecs::query::accessors::{R, W};
 use tuber_ecs::system::SystemBundle;
@@ -35,8 +36,14 @@ pub struct AnimatedSprite {
     pub width: f32,
     pub height: f32,
     pub texture: TextureSource,
+    pub animation_state: AnimationState,
+}
+
+pub struct AnimationState {
     pub keyframes: Vec<TextureRegion>,
     pub current_keyframe: usize,
+    pub start_instant: Instant,
+    pub frame_duration: u32,
 }
 
 pub struct RectangleShape {
@@ -197,7 +204,8 @@ impl Graphics {
             None => (32, 32),
         };
 
-        let current_keyframe = animated_sprite.keyframes[animated_sprite.current_keyframe];
+        let current_keyframe = animated_sprite.animation_state.keyframes
+            [animated_sprite.animation_state.current_keyframe];
         self.graphics_impl.prepare_quad(
             &QuadDescription {
                 width: animated_sprite.width,
@@ -298,8 +306,11 @@ pub fn render(ecs: &mut Ecs) {
 
 pub fn sprite_animation_step_system(ecs: &mut Ecs) {
     for (_, (mut animated_sprite,)) in ecs.query::<(W<AnimatedSprite>,)>() {
-        animated_sprite.current_keyframe =
-            (animated_sprite.current_keyframe + 1) % animated_sprite.keyframes.len();
+        let mut animation_state = &mut animated_sprite.animation_state;
+        animation_state.current_keyframe = ((animation_state.start_instant.elapsed().as_millis()
+            / animation_state.frame_duration as u128)
+            % animation_state.keyframes.len() as u128)
+            as usize
     }
 }
 
