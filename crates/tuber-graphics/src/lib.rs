@@ -278,10 +278,14 @@ impl Graphics {
     pub fn set_bounding_box_rendering(&mut self, enabled: bool) {
         self.bounding_box_rendering = enabled;
     }
+
+    pub fn on_window_resized(&mut self, width: u32, height: u32) {
+        self.graphics_impl.on_window_resized((width, height));
+    }
 }
 
 pub fn render(ecs: &mut Ecs) {
-    let mut graphics = ecs.resource_mut::<Graphics>();
+    let mut graphics = ecs.resource_mut::<Graphics>().unwrap();
 
     let (camera_id, (camera, _, camera_transform)) = ecs
         .query_one::<(R<OrthographicCamera>, R<Active>, R<Transform2D>)>()
@@ -331,6 +335,7 @@ pub trait LowLevelGraphicsAPI {
         camera: &OrthographicCamera,
         transform: &Transform2D,
     );
+    fn on_window_resized(&mut self, size: WindowSize);
 }
 
 pub struct QuadDescription {

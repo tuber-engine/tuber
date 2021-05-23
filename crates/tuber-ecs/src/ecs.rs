@@ -71,15 +71,14 @@ impl Ecs {
         })
     }
 
-    pub fn resource_mut<T: 'static>(&self) -> RefMut<T> {
-        RefMut::map(
+    pub fn resource_mut<T: 'static>(&self) -> Option<RefMut<T>> {
+        Some(RefMut::map(
             self.shared_resources
                 .get(&TypeId::of::<T>())
-                .as_ref()
-                .unwrap()
+                .as_ref()?
                 .borrow_mut(),
             |r| r.downcast_mut().unwrap(),
-        )
+        ))
     }
 
     /// Inserts an entity into the Ecs.

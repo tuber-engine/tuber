@@ -21,12 +21,12 @@ pub struct GraphicsWGPU {
 }
 
 pub struct WGPUState {
-    _surface: wgpu::Surface,
+    surface: wgpu::Surface,
     device: wgpu::Device,
     queue: wgpu::Queue,
-    _sc_desc: wgpu::SwapChainDescriptor,
+    sc_desc: wgpu::SwapChainDescriptor,
     swap_chain: wgpu::SwapChain,
-    _window_size: WindowSize,
+    window_size: WindowSize,
     quad_renderer: QuadRenderer,
     bounding_box_renderer: BoundingBoxRenderer,
 }
@@ -83,12 +83,12 @@ impl LowLevelGraphicsAPI for GraphicsWGPU {
         let bounding_box_renderer = BoundingBoxRenderer::new(&device, &format);
 
         self.wgpu_state = Some(WGPUState {
-            _surface: surface,
+            surface: surface,
             device,
             queue,
-            _sc_desc: sc_desc,
+            sc_desc: sc_desc,
             swap_chain,
-            _window_size: window_size,
+            window_size,
             quad_renderer,
             bounding_box_renderer,
         });
@@ -180,6 +180,16 @@ impl LowLevelGraphicsAPI for GraphicsWGPU {
         state
             .bounding_box_renderer
             .set_camera(&state.queue, camera, transform);
+    }
+
+    fn on_window_resized(&mut self, new_size: WindowSize) {
+        let state = self.wgpu_state.as_mut().expect("Graphics is uninitialized");
+        state.window_size = new_size;
+        state.sc_desc.width = new_size.0;
+        state.sc_desc.height = new_size.1;
+        state.swap_chain = state
+            .device
+            .create_swap_chain(&state.surface, &state.sc_desc);
     }
 }
 

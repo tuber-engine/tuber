@@ -56,6 +56,12 @@ impl TuberRunner for WinitTuberRunner {
                         engine.handle_input(input);
                     }
                 }
+                Event::WindowEvent {
+                    event: WindowEvent::Resized(new_size),
+                    window_id,
+                } if window_id == window.id() => {
+                    engine.on_window_resized(new_size.width, new_size.height);
+                }
                 Event::MainEventsCleared => {
                     let new_time = Instant::now();
                     let frame_time = new_time.duration_since(current_time).as_secs_f64();

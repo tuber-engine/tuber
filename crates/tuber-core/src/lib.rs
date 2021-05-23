@@ -24,7 +24,7 @@ impl Engine {
     }
 
     pub fn handle_input(&mut self, input: input::Input) {
-        let mut input_state = self.ecs.resource_mut::<InputState>();
+        let mut input_state = self.ecs.resource_mut::<InputState>().unwrap();
         input_state.handle_input(input);
     }
 
@@ -46,6 +46,12 @@ impl Engine {
     pub fn ignite(mut self) -> Result<()> {
         loop {
             self.step(1.0);
+        }
+    }
+
+    pub fn on_window_resized(&mut self, width: u32, height: u32) {
+        if let Some(mut graphics) = self.ecs.resource_mut::<Graphics>() {
+            graphics.on_window_resized(width, height);
         }
     }
 }
