@@ -1,8 +1,6 @@
-use rand::{thread_rng, Rng};
-use std::collections::VecDeque;
 use tuber::graphics::camera::{Active, OrthographicCamera};
 use tuber::graphics::RectangleShape;
-use tuber::graphics::{Graphics, Sprite, Transform2D};
+use tuber::graphics::{Graphics, Transform2D};
 use tuber::graphics_wgpu::GraphicsWGPU;
 use tuber::keyboard::Key;
 use tuber::Input::{KeyDown, KeyUp};
@@ -49,7 +47,7 @@ fn main() -> Result<()> {
 }
 
 fn move_camera_right_system(ecs: &mut Ecs) {
-    let input_state = ecs.resource::<InputState>();
+    let input_state = ecs.resource::<InputState>().unwrap();
     let (_, (_, mut transform)) = ecs
         .query_one::<(R<OrthographicCamera>, W<Transform2D>)>()
         .unwrap();

@@ -115,12 +115,12 @@ fn check_collision_with_body_system(ecs: &mut Ecs) {
 
 fn move_head_system(ecs: &mut Ecs) {
     let is_game_over = {
-        let input_state = ecs.resource::<InputState>();
+        let input_state = ecs.resource::<InputState>().unwrap();
         let (_, (_, mut velocity, mut transform)) = ecs
             .query_one::<(R<SnakeHead>, W<Velocity>, W<Transform2D>)>()
             .unwrap();
 
-        let mut pivot_list = ecs.resource_mut::<PivotList>();
+        let mut pivot_list = ecs.resource_mut::<PivotList>().unwrap();
         if input_state.is(KeyDown(Key::Q)) {
             transform.angle -= 2.0;
             pivot_list.0.push_back(Pivot {
@@ -156,7 +156,7 @@ fn game_over(ecs: &mut Ecs) {
 }
 
 fn reset_score(ecs: &mut Ecs) {
-    let mut score = ecs.resource_mut::<Score>();
+    let mut score = ecs.resource_mut::<Score>().unwrap();
     score.0 = 0;
     println!("Score: {}", score.0);
 }
@@ -231,7 +231,7 @@ fn spawn_snake(ecs: &mut Ecs) {
 fn move_body_parts_system(ecs: &mut Ecs) {
     let (head_id, _) = ecs.query_one::<(R<SnakeHead>,)>().unwrap();
     let (tail_id, _) = ecs.query_one::<(R<SnakeTail>,)>().unwrap();
-    let mut pivots = ecs.resource_mut::<PivotList>();
+    let mut pivots = ecs.resource_mut::<PivotList>().unwrap();
     let mut pivots_to_delete = vec![];
     for (body_part_id, (mut transform, mut velocity)) in
         ecs.query::<(W<Transform2D>, W<Velocity>)>()
@@ -265,7 +265,7 @@ fn eat_apple_system(ecs: &mut Ecs) {
         let (_, (_, head_transform, head_sprite)) = ecs
             .query_one::<(R<SnakeHead>, R<Transform2D>, R<Sprite>)>()
             .unwrap();
-        let mut score = ecs.resource_mut::<Score>();
+        let mut score = ecs.resource_mut::<Score>().unwrap();
         let head_rectangle = (
             head_transform.translation.0,
             head_transform.translation.1,

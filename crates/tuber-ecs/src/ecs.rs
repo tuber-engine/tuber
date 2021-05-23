@@ -65,10 +65,11 @@ impl Ecs {
             .insert(TypeId::of::<T>(), RefCell::new(Box::new(resource)));
     }
 
-    pub fn resource<T: 'static>(&self) -> Ref<T> {
-        Ref::map(self.shared_resources[&TypeId::of::<T>()].borrow(), |r| {
-            r.downcast_ref().unwrap()
-        })
+    pub fn resource<T: 'static>(&self) -> Option<Ref<T>> {
+        Some(Ref::map(
+            self.shared_resources.get(&TypeId::of::<T>())?.borrow(),
+            |r| r.downcast_ref().unwrap(),
+        ))
     }
 
     pub fn resource_mut<T: 'static>(&self) -> Option<RefMut<T>> {
