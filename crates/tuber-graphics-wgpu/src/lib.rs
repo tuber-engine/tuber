@@ -5,7 +5,9 @@ use futures;
 use std::collections::HashMap;
 use tuber_graphics::camera::OrthographicCamera;
 use tuber_graphics::texture::TextureData;
-use tuber_graphics::{LowLevelGraphicsAPI, QuadDescription, Transform2D, Window, WindowSize};
+use tuber_graphics::{
+    low_level::LowLevelGraphicsAPI, low_level::QuadDescription, Transform2D, Window, WindowSize,
+};
 
 mod bounding_box_renderer;
 mod quad_renderer;
