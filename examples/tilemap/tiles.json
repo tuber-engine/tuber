@@ -1,0 +1,23 @@
+{
+    "texture_identifier": "examples/tilemap/tiles.png",
+    "textures": {
+        "dirt": {
+            "x": 0,
+            "y": 0,
+            "width": 16,
+            "height": 16
+        },
+        "water": {
+            "x": 16,
+            "y": 0,
+            "width": 16,
+            "height": 16
+        },
+        "sand": {
+            "x": 0,
+            "y": 16,
+            "width": 16,
+            "height": 16
+        }
+    }
+}

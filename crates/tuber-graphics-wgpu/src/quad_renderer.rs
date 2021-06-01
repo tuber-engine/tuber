@@ -203,7 +203,7 @@ impl QuadRenderer {
     ) -> RenderPipeline {
         let textured_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("quad_renderer_textured_render_pipeline_layotu"),
+                label: Some("quad_renderer_textured_render_pipeline_layout"),
                 bind_group_layouts: &[&texture_bind_group_layout, &uniform_bind_group_layout],
                 push_constant_ranges: &[],
             });

@@ -1,17 +1,25 @@
 use crate::bounding_box_renderer::BoundingBoxRenderer;
+use crate::mesh_2d_renderer::Mesh2DRenderer;
 use crate::quad_renderer::QuadRenderer;
 use crate::texture::Texture;
+use crate::tilemap_render::TilemapRenderer;
 use futures;
 use std::collections::HashMap;
+use tuber_common::tilemap::Tilemap;
 use tuber_graphics::camera::OrthographicCamera;
+use tuber_graphics::low_level::MeshDescription;
 use tuber_graphics::texture::TextureData;
+use tuber_graphics::tilemap::TilemapRender;
 use tuber_graphics::{
-    low_level::LowLevelGraphicsAPI, low_level::QuadDescription, Transform2D, Window, WindowSize,
+    low_level::LowLevelGraphicsAPI, low_level::QuadDescription, TextureAtlas, Transform2D, Window,
+    WindowSize,
 };
 
 mod bounding_box_renderer;
+mod mesh_2d_renderer;
 mod quad_renderer;
 mod texture;
+mod tilemap_render;
 
 #[derive(Debug)]
 pub enum TuberGraphicsWGPUError {}
@@ -30,6 +38,8 @@ pub struct WGPUState {
     swap_chain: wgpu::SwapChain,
     window_size: WindowSize,
     quad_renderer: QuadRenderer,
+    mesh_2d_renderer: Mesh2DRenderer,
+    tilemap_renderer: TilemapRenderer,
     bounding_box_renderer: BoundingBoxRenderer,
 }
 
@@ -82,6 +92,8 @@ impl LowLevelGraphicsAPI for GraphicsWGPU {
 
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
         let quad_renderer = QuadRenderer::new(&device, &queue, &format);
+        let mesh_2d_renderer = Mesh2DRenderer::new(&device, &queue, &format);
+        let tilemap_renderer = TilemapRenderer::new(&device, &queue, &format);
         let bounding_box_renderer = BoundingBoxRenderer::new(&device, &format);
 
         self.wgpu_state = Some(WGPUState {
@@ -92,6 +104,8 @@ impl LowLevelGraphicsAPI for GraphicsWGPU {
             swap_chain,
             window_size,
             quad_renderer,
+            mesh_2d_renderer,
+            tilemap_renderer,
             bounding_box_renderer,
         });
     }
@@ -125,6 +139,8 @@ impl LowLevelGraphicsAPI for GraphicsWGPU {
             });
 
             state.quad_renderer.render(&mut render_pass);
+            state.mesh_2d_renderer.render(&mut render_pass);
+            state.tilemap_renderer.render(&mut render_pass);
             state.bounding_box_renderer.render(&mut render_pass);
         }
 
@@ -156,6 +172,34 @@ impl LowLevelGraphicsAPI for GraphicsWGPU {
         }
     }
 
+    fn prepare_mesh_2d(&mut self, mesh_description: MeshDescription, transform: &Transform2D) {
+        let state = self.wgpu_state.as_mut().expect("Graphics is uninitialized");
+        state.mesh_2d_renderer.prepare(
+            &state.device,
+            &state.queue,
+            &mesh_description,
+            transform,
+            &self.textures,
+        );
+    }
+
+    fn prepare_tilemap(
+        &mut self,
+        tilemap: &Tilemap,
+        tilemap_render: &TilemapRender,
+        texture_atlas: &TextureAtlas,
+    ) {
+        let state = self.wgpu_state.as_mut().expect("Graphics is uninitialized");
+        state.tilemap_renderer.prepare(
+            &state.device,
+            &state.queue,
+            tilemap,
+            tilemap_render,
+            texture_atlas,
+            &self.textures,
+        );
+    }
+
     fn is_texture_in_memory(&self, texture_identifier: &str) -> bool {
         self.textures.contains_key(texture_identifier)
     }
@@ -178,6 +222,12 @@ impl LowLevelGraphicsAPI for GraphicsWGPU {
         self.camera_id = Some(camera_id);
         state
             .quad_renderer
+            .set_camera(&state.queue, camera, transform);
+        state
+            .mesh_2d_renderer
+            .set_camera(&state.queue, camera, transform);
+        state
+            .tilemap_renderer
             .set_camera(&state.queue, camera, transform);
         state
             .bounding_box_renderer

@@ -1,6 +1,7 @@
 use crate::camera::{Active, OrthographicCamera};
 use crate::low_level::*;
 use crate::texture::{TextureData, TextureRegion, TextureSource};
+use crate::tilemap::TilemapRender;
 use cgmath::{vec3, Deg};
 use image::ImageError;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
@@ -9,6 +10,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
 use std::time::Instant;
+use tuber_common::tilemap::Tilemap;
 use tuber_ecs::ecs::Ecs;
 use tuber_ecs::query::accessors::{R, W};
 use tuber_ecs::system::SystemBundle;
@@ -25,6 +27,7 @@ pub enum GraphicsError {
 pub mod camera;
 pub mod low_level;
 pub mod texture;
+pub mod tilemap;
 
 pub type Color = (f32, f32, f32);
 
@@ -59,6 +62,7 @@ pub struct Transform2D {
     pub translation: (f32, f32),
     pub angle: f32,
     pub rotation_center: (f32, f32),
+    pub scale: f32,
 }
 
 impl From<Transform2D> for cgmath::Matrix4<f32> {
@@ -69,11 +73,13 @@ impl From<Transform2D> for cgmath::Matrix4<f32> {
             0.0,
         );
 
-        cgmath::Matrix4::from_translation(vec3(
-            transform_2d.translation.0,
-            transform_2d.translation.1,
-            0.0,
-        )) * cgmath::Matrix4::from_translation(translate_to_rotation_center.clone())
+        cgmath::Matrix4::from_scale(transform_2d.scale)
+            * cgmath::Matrix4::from_translation(vec3(
+                transform_2d.translation.0,
+                transform_2d.translation.1,
+                0.0,
+            ))
+            * cgmath::Matrix4::from_translation(translate_to_rotation_center.clone())
             * cgmath::Matrix4::from_angle_z(Deg(transform_2d.angle))
             * cgmath::Matrix4::from_translation(-translate_to_rotation_center)
     }
@@ -85,6 +91,7 @@ impl Default for Transform2D {
             translation: (0.0, 0.0),
             angle: 0.0,
             rotation_center: (0.0, 0.0),
+            scale: 1.0,
         }
     }
 }
@@ -111,6 +118,10 @@ pub struct TextureAtlas {
 impl TextureAtlas {
     pub fn texture_region(&self, texture_name: &str) -> Option<TextureRegion> {
         self.textures.get(texture_name).cloned()
+    }
+
+    pub fn texture_identifier(&self) -> &str {
+        &self.texture_identifier
     }
 }
 
@@ -181,6 +192,96 @@ impl Graphics {
             );
             self.graphics_impl.load_texture(texture_data);
         }
+    }
+
+    fn prepare_mesh_2d(&mut self) {
+        fn to_texture_coord(x: f32, y: f32) -> (f32, f32) {
+            (x / 32.0, y / 32.0)
+        };
+
+        let mesh = MeshDescription {
+            vertices: vec![
+                VertexDescription {
+                    position: (0.0, 0.0, 0.0),
+                    color: (1.0, 0.0, 0.0),
+                    texture_coordinates: to_texture_coord(0.0, 0.0),
+                },
+                VertexDescription {
+                    position: (0.0, 32.0, 0.0),
+                    color: (0.0, 1.0, 0.0),
+                    texture_coordinates: to_texture_coord(0.0, 16.0),
+                },
+                VertexDescription {
+                    position: (32.0, 0.0, 0.0),
+                    color: (0.0, 0.0, 1.0),
+                    texture_coordinates: to_texture_coord(16.0, 0.0),
+                },
+                VertexDescription {
+                    position: (32.0, 0.0, 0.0),
+                    color: (1.0, 0.0, 0.0),
+                    texture_coordinates: to_texture_coord(16.0, 0.0),
+                },
+                VertexDescription {
+                    position: (0.0, 32.0, 0.0),
+                    color: (0.0, 1.0, 0.0),
+                    texture_coordinates: to_texture_coord(0.0, 16.0),
+                },
+                VertexDescription {
+                    position: (32.0, 32.0, 0.0),
+                    color: (0.0, 0.0, 1.0),
+                    texture_coordinates: to_texture_coord(16.0, 16.0),
+                },
+                VertexDescription {
+                    position: (32.0, 0.0, 0.0),
+                    color: (1.0, 0.0, 0.0),
+                    texture_coordinates: to_texture_coord(16.0, 0.0),
+                },
+                VertexDescription {
+                    position: (32.0, 32.0, 0.0),
+                    color: (0.0, 1.0, 0.0),
+                    texture_coordinates: to_texture_coord(16.0, 16.0),
+                },
+                VertexDescription {
+                    position: (64.0, 0.0, 0.0),
+                    color: (0.0, 0.0, 1.0),
+                    texture_coordinates: to_texture_coord(32.0, 0.0),
+                },
+                VertexDescription {
+                    position: (64.0, 0.0, 0.0),
+                    color: (1.0, 0.0, 0.0),
+                    texture_coordinates: to_texture_coord(32.0, 0.0),
+                },
+                VertexDescription {
+                    position: (32.0, 32.0, 0.0),
+                    color: (0.0, 1.0, 0.0),
+                    texture_coordinates: to_texture_coord(16.0, 16.0),
+                },
+                VertexDescription {
+                    position: (64.0, 32.0, 0.0),
+                    color: (0.0, 0.0, 1.0),
+                    texture_coordinates: to_texture_coord(32.0, 16.0),
+                },
+            ],
+            texture: TextureDescription {
+                identifier: "examples/tilemap/tiles.png".to_string(),
+                texture_region: TextureRegion {
+                    x: 0.0,
+                    y: 0.0,
+                    width: 64.0,
+                    height: 64.0,
+                },
+            },
+        };
+
+        if !self
+            .graphics_impl
+            .is_texture_in_memory(&mesh.texture.identifier)
+        {
+            self.load_texture(&mesh.texture.identifier);
+        }
+
+        self.graphics_impl
+            .prepare_mesh_2d(mesh, &Transform2D::default());
     }
 
     fn prepare_animated_sprite(
@@ -271,6 +372,23 @@ impl Graphics {
         Ok(())
     }
 
+    fn prepare_tilemap(&mut self, tilemap: &Tilemap, tilemap_render: &TilemapRender) {
+        if !self
+            .texture_atlases
+            .contains_key(&tilemap_render.texture_atlas_identifier)
+        {
+            self.load_texture_atlas(&tilemap_render.texture_atlas_identifier);
+        }
+
+        self.graphics_impl.prepare_tilemap(
+            tilemap,
+            tilemap_render,
+            self.texture_atlases
+                .get(&tilemap_render.texture_atlas_identifier)
+                .unwrap(),
+        );
+    }
+
     pub fn default_system_bundle(&mut self) -> SystemBundle {
         let mut system_bundle = SystemBundle::new();
         system_bundle.add_system(sprite_animation_step_system);
@@ -296,6 +414,12 @@ pub fn render(ecs: &mut Ecs) {
         .graphics_impl
         .update_camera(camera_id, &camera, &camera_transform);
 
+    //graphics.prepare_mesh_2d();
+
+    for (_, (tilemap, tilemap_render)) in ecs.query::<(R<Tilemap>, R<TilemapRender>)>() {
+        graphics.prepare_tilemap(&tilemap, &tilemap_render);
+    }
+
     for (_, (rectangle_shape, transform)) in ecs.query::<(R<RectangleShape>, R<Transform2D>)>() {
         graphics.prepare_rectangle(&rectangle_shape, &transform);
     }
@@ -306,6 +430,10 @@ pub fn render(ecs: &mut Ecs) {
         graphics
             .prepare_animated_sprite(&animated_sprite, &transform)
             .unwrap();
+    }
+
+    for (_, (mut tilemap_render,)) in ecs.query::<(W<TilemapRender>,)>() {
+        tilemap_render.dirty = false;
     }
     graphics.render();
 }
