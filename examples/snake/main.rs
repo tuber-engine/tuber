@@ -1,7 +1,7 @@
 use rand::{thread_rng, Rng};
 use std::collections::VecDeque;
 use tuber::graphics::camera::{Active, OrthographicCamera};
-use tuber::graphics::{Graphics, Sprite, Transform2D};
+use tuber::graphics::{sprite::*, Graphics, Transform2D};
 use tuber::graphics_wgpu::GraphicsWGPU;
 use tuber::keyboard::Key;
 use tuber::Input::KeyDown;
