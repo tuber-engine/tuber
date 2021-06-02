@@ -3,9 +3,11 @@ use crate::GraphicsError::{ImageDecodeError, TextureFileOpenFailure};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+pub type TextureSize = (u32, u32);
+
 pub struct TextureData {
     pub identifier: String,
-    pub size: (u32, u32),
+    pub size: TextureSize,
     pub bytes: Vec<u8>,
 }
 

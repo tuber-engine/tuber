@@ -1,5 +1,5 @@
 use crate::TuberGraphicsWGPUError;
-use tuber_graphics::texture::TextureData;
+use tuber_graphics::texture::{TextureData, TextureSize};
 use wgpu::{TextureDimension, TextureFormat};
 
 pub struct Texture {
@@ -7,6 +7,7 @@ pub struct Texture {
     pub view: wgpu::TextureView,
     pub sampler: wgpu::Sampler,
     pub bind_group: wgpu::BindGroup,
+    pub size: TextureSize,
 }
 
 impl Texture {
@@ -104,6 +105,7 @@ impl Texture {
             view,
             sampler,
             bind_group,
+            size: (size.0, size.1),
         })
     }
 }

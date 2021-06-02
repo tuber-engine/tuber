@@ -127,6 +127,7 @@ impl TilemapRenderer {
         }
     }
 
+    //noinspection ALL
     pub fn prepare(
         &mut self,
         device: &Device,
@@ -147,17 +148,24 @@ impl TilemapRenderer {
             mapped_at_creation: false,
         });
 
+        let texture_identifier = texture_atlas.texture_identifier();
+        let texture = textures.get(texture_identifier).unwrap();
+        let texture_width = texture.size.0 as f32;
+        let texture_height = texture.size.1 as f32;
+
         for j in 0..tilemap.height {
             for i in 0..tilemap.width {
-                let texture =
+                let texture_region_identifier =
                     (tilemap_render.tile_texture_function)(&tilemap.tiles[i + j * tilemap.width])
                         .unwrap();
-                let texture_region = texture_atlas.texture_region(texture).unwrap();
+                let texture_region = texture_atlas
+                    .texture_region(texture_region_identifier)
+                    .unwrap();
                 let texture_region = TextureRegion {
-                    x: texture_region.x / 64.0,
-                    y: texture_region.y / 64.0,
-                    width: 16.0 / 64.0,
-                    height: 16.0 / 64.0,
+                    x: texture_region.x / texture_width,
+                    y: texture_region.y / texture_height,
+                    width: texture_region.width / texture_width,
+                    height: texture_region.height / texture_height,
                 };
 
                 queue.write_buffer(
@@ -232,8 +240,7 @@ impl TilemapRenderer {
             }
         }
 
-        let texture_identifier = texture_atlas.texture_identifier();
-        let bind_group = self.create_texture_bind_group(texture_identifier, device, textures);
+        let bind_group = self.create_texture_bind_group(device, texture);
 
         self.tilemap_data.insert(
             tilemap_render.identifier.to_owned(),
@@ -278,13 +285,7 @@ impl TilemapRenderer {
         queue.write_buffer(&self.uniform_buffer, 0u64, bytemuck::cast_slice(&[uniform]));
     }
 
-    fn create_texture_bind_group(
-        &self,
-        texture_identifier: &str,
-        device: &Device,
-        textures: &HashMap<String, Texture>,
-    ) -> wgpu::BindGroup {
-        let texture = textures.get(texture_identifier).unwrap();
+    fn create_texture_bind_group(&self, device: &Device, texture: &Texture) -> wgpu::BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("tilemap_renderer_texture_bind_group"),
             layout: &self.bind_group_layout,
