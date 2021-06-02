@@ -1,36 +1,25 @@
 use crate::texture::Texture;
 use crate::Vertex;
-use cgmath::{Matrix4, Point3, Transform};
+use cgmath::{Matrix4, Transform};
 use std::collections::HashMap;
 use tuber_common::tilemap::Tilemap;
 use tuber_graphics::camera::OrthographicCamera;
-use tuber_graphics::low_level::MeshDescription;
-use tuber_graphics::texture::{TextureData, TextureRegion};
+use tuber_graphics::texture::TextureRegion;
 use tuber_graphics::tilemap::TilemapRender;
 use tuber_graphics::{texture::TextureAtlas, transform::Transform2D};
 use wgpu::util::DeviceExt;
-use wgpu::{
-    BindGroupDescriptor, BufferDescriptor, Device, FragmentState, Queue, RenderPass, TextureFormat,
-};
-
-// TODO remove and reallocate buffer dynamically
-const MAX_VERTEX_COUNT: usize = 1000;
+use wgpu::{BufferDescriptor, Device, FragmentState, Queue, RenderPass, TextureFormat};
 
 pub(crate) struct TilemapRenderer {
     pipeline: wgpu::RenderPipeline,
     uniform_bind_group: wgpu::BindGroup,
     uniform_buffer: wgpu::Buffer,
-    texture_bind_groups: HashMap<String, wgpu::BindGroup>,
-    bind_group: wgpu::BindGroup,
     bind_group_layout: wgpu::BindGroupLayout,
-    texture: Texture,
-    vertex_buffer: wgpu::Buffer,
-    vertex_count: usize,
     tilemap_data: HashMap<String, TilemapRenderData>,
 }
 
 impl TilemapRenderer {
-    pub fn new(device: &Device, queue: &Queue, texture_format: &TextureFormat) -> Self {
+    pub fn new(device: &Device, texture_format: &TextureFormat) -> Self {
         let uniforms = Uniforms::new();
         let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("tilemap_renderer_uniform_buffer"),
@@ -64,13 +53,6 @@ impl TilemapRenderer {
             device.create_shader_module(&wgpu::include_spirv!("shaders/tilemap.vert.spv"));
         let fragment_shader_module =
             device.create_shader_module(&wgpu::include_spirv!("shaders/tilemap.frag.spv"));
-        let default_texture_bytes = include_bytes!("./textures/default_texture.png");
-        let default_texture = Texture::from_texture_data(
-            device,
-            queue,
-            TextureData::from_bytes("default_texture", default_texture_bytes).unwrap(),
-        )
-        .unwrap();
 
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("tilemap_renderer_texture_bind_group_layout"),
@@ -93,21 +75,6 @@ impl TilemapRenderer {
                         filtering: true,
                     },
                     count: None,
-                },
-            ],
-        });
-
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("tilemap_renderer_texture_bind_group"),
-            layout: &bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&default_texture.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&default_texture.sampler),
                 },
             ],
         });
@@ -151,23 +118,11 @@ impl TilemapRenderer {
             },
         });
 
-        let vertex_buffer = device.create_buffer(&BufferDescriptor {
-            label: Some("tilemap_renderer_vertex_buffer"),
-            size: (MAX_VERTEX_COUNT * std::mem::size_of::<Vertex>()) as u64,
-            usage: wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_DST,
-            mapped_at_creation: false,
-        });
-
         Self {
             pipeline,
             uniform_bind_group,
             uniform_buffer,
-            bind_group,
             bind_group_layout,
-            texture_bind_groups: HashMap::new(),
-            texture: default_texture,
-            vertex_buffer,
-            vertex_count: 0,
             tilemap_data: HashMap::new(),
         }
     }
@@ -278,21 +233,7 @@ impl TilemapRenderer {
         }
 
         let texture_identifier = texture_atlas.texture_identifier();
-        let texture = &textures[texture_identifier];
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: None,
-            layout: &self.bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&texture.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&texture.sampler),
-                },
-            ],
-        });
+        let bind_group = self.create_texture_bind_group(texture_identifier, device, textures);
 
         self.tilemap_data.insert(
             tilemap_render.identifier.to_owned(),
@@ -359,11 +300,6 @@ impl TilemapRenderer {
             ],
         })
     }
-}
-
-struct MeshMetadata {
-    vertex_count: usize,
-    texture_identifier: String,
 }
 
 #[repr(C)]

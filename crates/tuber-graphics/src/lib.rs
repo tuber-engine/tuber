@@ -5,14 +5,11 @@ use crate::sprite::{sprite_animation_step_system, AnimatedSprite, Sprite};
 use crate::texture::{TextureAtlas, TextureData, TextureMetadata, TextureRegion, TextureSource};
 use crate::tilemap::TilemapRender;
 use crate::transform::Transform2D;
-use cgmath::{vec3, Deg};
 use image::ImageError;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
-use std::time::Instant;
 use tuber_common::tilemap::Tilemap;
 use tuber_ecs::ecs::Ecs;
 use tuber_ecs::query::accessors::{R, W};
@@ -207,7 +204,8 @@ impl Graphics {
             .texture_atlases
             .contains_key(&tilemap_render.texture_atlas_identifier)
         {
-            self.load_texture_atlas(&tilemap_render.texture_atlas_identifier);
+            self.load_texture_atlas(&tilemap_render.texture_atlas_identifier)
+                .unwrap();
         }
 
         self.graphics_impl.prepare_tilemap(

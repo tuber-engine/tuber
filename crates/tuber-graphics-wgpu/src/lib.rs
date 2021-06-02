@@ -6,7 +6,6 @@ use futures;
 use std::collections::HashMap;
 use tuber_common::tilemap::Tilemap;
 use tuber_graphics::camera::OrthographicCamera;
-use tuber_graphics::low_level::MeshDescription;
 use tuber_graphics::texture::TextureData;
 use tuber_graphics::tilemap::TilemapRender;
 use tuber_graphics::{
@@ -89,14 +88,14 @@ impl LowLevelGraphicsAPI for GraphicsWGPU {
 
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
         let quad_renderer = QuadRenderer::new(&device, &queue, &format);
-        let tilemap_renderer = TilemapRenderer::new(&device, &queue, &format);
+        let tilemap_renderer = TilemapRenderer::new(&device, &format);
         let bounding_box_renderer = BoundingBoxRenderer::new(&device, &format);
 
         self.wgpu_state = Some(WGPUState {
-            surface: surface,
+            surface,
             device,
             queue,
-            sc_desc: sc_desc,
+            sc_desc,
             swap_chain,
             window_size,
             quad_renderer,
