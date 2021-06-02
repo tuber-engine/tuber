@@ -1,5 +1,4 @@
 use crate::bounding_box_renderer::BoundingBoxRenderer;
-use crate::mesh_2d_renderer::Mesh2DRenderer;
 use crate::quad_renderer::QuadRenderer;
 use crate::texture::Texture;
 use crate::tilemap_render::TilemapRenderer;
@@ -16,7 +15,6 @@ use tuber_graphics::{
 };
 
 mod bounding_box_renderer;
-mod mesh_2d_renderer;
 mod quad_renderer;
 mod texture;
 mod tilemap_render;
@@ -38,7 +36,6 @@ pub struct WGPUState {
     swap_chain: wgpu::SwapChain,
     window_size: WindowSize,
     quad_renderer: QuadRenderer,
-    mesh_2d_renderer: Mesh2DRenderer,
     tilemap_renderer: TilemapRenderer,
     bounding_box_renderer: BoundingBoxRenderer,
 }
@@ -92,7 +89,6 @@ impl LowLevelGraphicsAPI for GraphicsWGPU {
 
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
         let quad_renderer = QuadRenderer::new(&device, &queue, &format);
-        let mesh_2d_renderer = Mesh2DRenderer::new(&device, &queue, &format);
         let tilemap_renderer = TilemapRenderer::new(&device, &queue, &format);
         let bounding_box_renderer = BoundingBoxRenderer::new(&device, &format);
 
@@ -104,7 +100,6 @@ impl LowLevelGraphicsAPI for GraphicsWGPU {
             swap_chain,
             window_size,
             quad_renderer,
-            mesh_2d_renderer,
             tilemap_renderer,
             bounding_box_renderer,
         });
@@ -139,7 +134,6 @@ impl LowLevelGraphicsAPI for GraphicsWGPU {
             });
 
             state.quad_renderer.render(&mut render_pass);
-            state.mesh_2d_renderer.render(&mut render_pass);
             state.tilemap_renderer.render(&mut render_pass);
             state.bounding_box_renderer.render(&mut render_pass);
         }
@@ -170,17 +164,6 @@ impl LowLevelGraphicsAPI for GraphicsWGPU {
                 transform,
             );
         }
-    }
-
-    fn prepare_mesh_2d(&mut self, mesh_description: MeshDescription, transform: &Transform2D) {
-        let state = self.wgpu_state.as_mut().expect("Graphics is uninitialized");
-        state.mesh_2d_renderer.prepare(
-            &state.device,
-            &state.queue,
-            &mesh_description,
-            transform,
-            &self.textures,
-        );
     }
 
     fn prepare_tilemap(
@@ -222,9 +205,6 @@ impl LowLevelGraphicsAPI for GraphicsWGPU {
         self.camera_id = Some(camera_id);
         state
             .quad_renderer
-            .set_camera(&state.queue, camera, transform);
-        state
-            .mesh_2d_renderer
             .set_camera(&state.queue, camera, transform);
         state
             .tilemap_renderer

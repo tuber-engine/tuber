@@ -85,32 +85,6 @@ fn main() -> tuber::Result<()> {
     runner.run(engine, graphics)
 }
 
-fn update_map_system(ecs: &mut Ecs) {
-    let mut timer = ecs.resource_mut::<MapUpdateTimer>().unwrap();
-    if timer.0.elapsed().as_secs_f64() > 2.0 {
-        timer.0 = std::time::Instant::now();
-        let (_, (mut tilemap, mut tilemap_render)) =
-            ecs.query_one::<(W<Tilemap>, W<TilemapRender>)>().unwrap();
-        use rand::Rng;
-        let mut rng = rand::thread_rng();
-        for tile in &mut tilemap.tiles {
-            let tile_tag = rng.gen_range(0..=2);
-            let mut tags = HashSet::new();
-
-            match tile_tag {
-                0 => tags.insert("water".to_owned()),
-                1 => tags.insert("sand".to_owned()),
-                2 => tags.insert("dirt".to_owned()),
-                _ => panic!(),
-            };
-
-            tile.tags = tags;
-        }
-
-        tilemap_render.dirty = true;
-    }
-}
-
 fn move_camera_system(ecs: &mut Ecs) {
     let input_state = ecs.resource::<InputState>().unwrap();
     let (_, (_, mut transform)) = ecs

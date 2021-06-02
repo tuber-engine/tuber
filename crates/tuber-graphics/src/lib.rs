@@ -194,96 +194,6 @@ impl Graphics {
         }
     }
 
-    fn prepare_mesh_2d(&mut self) {
-        fn to_texture_coord(x: f32, y: f32) -> (f32, f32) {
-            (x / 32.0, y / 32.0)
-        };
-
-        let mesh = MeshDescription {
-            vertices: vec![
-                VertexDescription {
-                    position: (0.0, 0.0, 0.0),
-                    color: (1.0, 0.0, 0.0),
-                    texture_coordinates: to_texture_coord(0.0, 0.0),
-                },
-                VertexDescription {
-                    position: (0.0, 32.0, 0.0),
-                    color: (0.0, 1.0, 0.0),
-                    texture_coordinates: to_texture_coord(0.0, 16.0),
-                },
-                VertexDescription {
-                    position: (32.0, 0.0, 0.0),
-                    color: (0.0, 0.0, 1.0),
-                    texture_coordinates: to_texture_coord(16.0, 0.0),
-                },
-                VertexDescription {
-                    position: (32.0, 0.0, 0.0),
-                    color: (1.0, 0.0, 0.0),
-                    texture_coordinates: to_texture_coord(16.0, 0.0),
-                },
-                VertexDescription {
-                    position: (0.0, 32.0, 0.0),
-                    color: (0.0, 1.0, 0.0),
-                    texture_coordinates: to_texture_coord(0.0, 16.0),
-                },
-                VertexDescription {
-                    position: (32.0, 32.0, 0.0),
-                    color: (0.0, 0.0, 1.0),
-                    texture_coordinates: to_texture_coord(16.0, 16.0),
-                },
-                VertexDescription {
-                    position: (32.0, 0.0, 0.0),
-                    color: (1.0, 0.0, 0.0),
-                    texture_coordinates: to_texture_coord(16.0, 0.0),
-                },
-                VertexDescription {
-                    position: (32.0, 32.0, 0.0),
-                    color: (0.0, 1.0, 0.0),
-                    texture_coordinates: to_texture_coord(16.0, 16.0),
-                },
-                VertexDescription {
-                    position: (64.0, 0.0, 0.0),
-                    color: (0.0, 0.0, 1.0),
-                    texture_coordinates: to_texture_coord(32.0, 0.0),
-                },
-                VertexDescription {
-                    position: (64.0, 0.0, 0.0),
-                    color: (1.0, 0.0, 0.0),
-                    texture_coordinates: to_texture_coord(32.0, 0.0),
-                },
-                VertexDescription {
-                    position: (32.0, 32.0, 0.0),
-                    color: (0.0, 1.0, 0.0),
-                    texture_coordinates: to_texture_coord(16.0, 16.0),
-                },
-                VertexDescription {
-                    position: (64.0, 32.0, 0.0),
-                    color: (0.0, 0.0, 1.0),
-                    texture_coordinates: to_texture_coord(32.0, 16.0),
-                },
-            ],
-            texture: TextureDescription {
-                identifier: "examples/tilemap/tiles.png".to_string(),
-                texture_region: TextureRegion {
-                    x: 0.0,
-                    y: 0.0,
-                    width: 64.0,
-                    height: 64.0,
-                },
-            },
-        };
-
-        if !self
-            .graphics_impl
-            .is_texture_in_memory(&mesh.texture.identifier)
-        {
-            self.load_texture(&mesh.texture.identifier);
-        }
-
-        self.graphics_impl
-            .prepare_mesh_2d(mesh, &Transform2D::default());
-    }
-
     fn prepare_animated_sprite(
         &mut self,
         animated_sprite: &AnimatedSprite,
@@ -413,8 +323,6 @@ pub fn render(ecs: &mut Ecs) {
     graphics
         .graphics_impl
         .update_camera(camera_id, &camera, &camera_transform);
-
-    //graphics.prepare_mesh_2d();
 
     for (_, (tilemap, tilemap_render)) in ecs.query::<(R<Tilemap>, R<TilemapRender>)>() {
         graphics.prepare_tilemap(&tilemap, &tilemap_render);

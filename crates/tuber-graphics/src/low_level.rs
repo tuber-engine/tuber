@@ -14,8 +14,6 @@ pub trait LowLevelGraphicsAPI {
         transform: &Transform2D,
         bounding_box_rendering: bool,
     );
-    /// Prepares the render of a mesh 2d
-    fn prepare_mesh_2d(&mut self, mesh: MeshDescription, transform: &Transform2D);
     fn prepare_tilemap(
         &mut self,
         tilemap: &Tilemap,
