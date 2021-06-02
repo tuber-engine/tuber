@@ -5,7 +5,7 @@ use tuber::ecs::query::accessors::{R, W};
 use tuber::ecs::system::SystemBundle;
 use tuber::graphics::camera::{Active, OrthographicCamera};
 use tuber::graphics::tilemap::TilemapRender;
-use tuber::graphics::{Graphics, Transform2D};
+use tuber::graphics::{transform::Transform2D, Graphics};
 use tuber::graphics_wgpu::GraphicsWGPU;
 use tuber::keyboard::Key;
 use tuber::Input::{KeyDown, KeyUp};

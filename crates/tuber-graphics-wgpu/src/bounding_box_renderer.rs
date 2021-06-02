@@ -1,7 +1,7 @@
 use crate::Vertex;
 use cgmath::{Matrix4, Point3, Transform};
 use tuber_graphics::camera::OrthographicCamera;
-use tuber_graphics::Transform2D;
+use tuber_graphics::transform::Transform2D;
 use wgpu::util::DeviceExt;
 use wgpu::{
     BindGroupLayout, BufferDescriptor, BufferUsage, Device, FragmentState, Queue, RenderPass,

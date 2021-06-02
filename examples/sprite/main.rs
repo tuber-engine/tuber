@@ -1,7 +1,7 @@
 use std::time::Instant;
 use tuber::graphics::camera::{Active, OrthographicCamera};
 use tuber::graphics::texture::{TextureRegion, TextureSource};
-use tuber::graphics::{sprite::*, Graphics, Transform2D};
+use tuber::graphics::{sprite::*, transform::Transform2D, Graphics};
 use tuber::graphics_wgpu::GraphicsWGPU;
 use tuber::*;
 

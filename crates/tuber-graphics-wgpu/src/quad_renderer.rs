@@ -4,7 +4,7 @@ use cgmath::{Matrix4, Transform, Vector2, Vector3, Vector4, Zero};
 use std::collections::HashMap;
 use tuber_graphics::camera::OrthographicCamera;
 use tuber_graphics::texture::TextureData;
-use tuber_graphics::{low_level::QuadDescription, Transform2D};
+use tuber_graphics::{low_level::QuadDescription, transform::Transform2D};
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
     BindGroupLayout, BufferDescriptor, Device, FragmentState, Queue, RenderPass, RenderPipeline,

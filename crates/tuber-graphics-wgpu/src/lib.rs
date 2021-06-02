@@ -10,8 +10,8 @@ use tuber_graphics::low_level::MeshDescription;
 use tuber_graphics::texture::TextureData;
 use tuber_graphics::tilemap::TilemapRender;
 use tuber_graphics::{
-    low_level::LowLevelGraphicsAPI, low_level::QuadDescription, TextureAtlas, Transform2D, Window,
-    WindowSize,
+    low_level::LowLevelGraphicsAPI, low_level::QuadDescription, transform::Transform2D,
+    TextureAtlas, Window, WindowSize,
 };
 
 mod bounding_box_renderer;
