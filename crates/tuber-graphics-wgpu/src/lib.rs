@@ -1,7 +1,7 @@
 use crate::bounding_box_renderer::BoundingBoxRenderer;
 use crate::quad_renderer::QuadRenderer;
 use crate::texture::Texture;
-use crate::tilemap_render::TilemapRenderer;
+use crate::tilemap_renderer::TilemapRenderer;
 use futures;
 use std::collections::HashMap;
 use tuber_common::tilemap::Tilemap;
@@ -16,7 +16,7 @@ use tuber_graphics::{
 mod bounding_box_renderer;
 mod quad_renderer;
 mod texture;
-mod tilemap_render;
+mod tilemap_renderer;
 
 #[derive(Debug)]
 pub enum TuberGraphicsWGPUError {}
