@@ -2,7 +2,7 @@ use crate::camera::{Active, OrthographicCamera};
 use crate::low_level::*;
 use crate::shape::RectangleShape;
 use crate::sprite::{sprite_animation_step_system, AnimatedSprite, Sprite};
-use crate::texture::{TextureData, TextureRegion, TextureSource};
+use crate::texture::{TextureAtlas, TextureData, TextureMetadata, TextureRegion, TextureSource};
 use crate::tilemap::TilemapRender;
 use crate::transform::Transform2D;
 use cgmath::{vec3, Deg};
@@ -42,27 +42,6 @@ pub struct Window<'a>(pub Box<&'a dyn HasRawWindowHandle>);
 unsafe impl HasRawWindowHandle for Window<'_> {
     fn raw_window_handle(&self) -> RawWindowHandle {
         self.0.raw_window_handle()
-    }
-}
-
-pub struct TextureMetadata {
-    pub width: u32,
-    pub height: u32,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct TextureAtlas {
-    texture_identifier: String,
-    textures: HashMap<String, TextureRegion>,
-}
-
-impl TextureAtlas {
-    pub fn texture_region(&self, texture_name: &str) -> Option<TextureRegion> {
-        self.textures.get(texture_name).cloned()
-    }
-
-    pub fn texture_identifier(&self) -> &str {
-        &self.texture_identifier
     }
 }
 

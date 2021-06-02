@@ -1,5 +1,5 @@
+use crate::GraphicsError;
 use crate::GraphicsError::{ImageDecodeError, TextureFileOpenFailure};
-use crate::{GraphicsError, TextureAtlas};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -136,5 +136,26 @@ impl TextureRegion {
 impl From<TextureRegion> for cgmath::Vector4<f32> {
     fn from(region: TextureRegion) -> Self {
         cgmath::Vector4::new(region.x, region.y, region.width, region.height)
+    }
+}
+
+pub struct TextureMetadata {
+    pub width: u32,
+    pub height: u32,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct TextureAtlas {
+    pub texture_identifier: String,
+    pub textures: HashMap<String, TextureRegion>,
+}
+
+impl TextureAtlas {
+    pub fn texture_region(&self, texture_name: &str) -> Option<TextureRegion> {
+        self.textures.get(texture_name).cloned()
+    }
+
+    pub fn texture_identifier(&self) -> &str {
+        &self.texture_identifier
     }
 }

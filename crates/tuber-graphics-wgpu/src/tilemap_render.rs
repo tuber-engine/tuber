@@ -7,7 +7,7 @@ use tuber_graphics::camera::OrthographicCamera;
 use tuber_graphics::low_level::MeshDescription;
 use tuber_graphics::texture::{TextureData, TextureRegion};
 use tuber_graphics::tilemap::TilemapRender;
-use tuber_graphics::{transform::Transform2D, TextureAtlas};
+use tuber_graphics::{texture::TextureAtlas, transform::Transform2D};
 use wgpu::util::DeviceExt;
 use wgpu::{
     BindGroupDescriptor, BufferDescriptor, Device, FragmentState, Queue, RenderPass, TextureFormat,
