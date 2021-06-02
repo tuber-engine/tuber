@@ -127,7 +127,6 @@ impl TilemapRenderer {
         }
     }
 
-    //noinspection ALL
     pub fn prepare(
         &mut self,
         device: &Device,
