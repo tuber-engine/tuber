@@ -1,5 +1,5 @@
 use tuber::graphics::camera::{Active, OrthographicCamera};
-use tuber::graphics::RectangleShape;
+use tuber::graphics::shape::RectangleShape;
 use tuber::graphics::{Graphics, Transform2D};
 use tuber::graphics_wgpu::GraphicsWGPU;
 use tuber::keyboard::Key;

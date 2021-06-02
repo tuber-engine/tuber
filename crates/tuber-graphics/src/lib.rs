@@ -1,5 +1,6 @@
 use crate::camera::{Active, OrthographicCamera};
 use crate::low_level::*;
+use crate::shape::RectangleShape;
 use crate::sprite::{sprite_animation_step_system, AnimatedSprite, Sprite};
 use crate::texture::{TextureData, TextureRegion, TextureSource};
 use crate::tilemap::TilemapRender;
@@ -27,17 +28,12 @@ pub enum GraphicsError {
 
 pub mod camera;
 pub mod low_level;
+pub mod shape;
 pub mod sprite;
 pub mod texture;
 pub mod tilemap;
 
 pub type Color = (f32, f32, f32);
-
-pub struct RectangleShape {
-    pub width: f32,
-    pub height: f32,
-    pub color: Color,
-}
 
 #[derive(Debug, Copy, Clone)]
 pub struct Transform2D {
