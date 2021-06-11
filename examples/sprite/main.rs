@@ -1,9 +1,10 @@
 use std::time::Instant;
 use tuber::graphics::camera::{Active, OrthographicCamera};
 use tuber::graphics::texture::{TextureRegion, TextureSource};
-use tuber::graphics::{sprite::*, transform::Transform2D, Graphics};
+use tuber::graphics::{sprite::*, Graphics};
 use tuber::graphics_wgpu::GraphicsWGPU;
 use tuber::*;
+use tuber_common::transform::Transform2D;
 
 fn main() -> Result<()> {
     let mut engine = Engine::new();
@@ -132,7 +133,7 @@ fn main() -> Result<()> {
     ));
 
     let mut graphics = Graphics::new(Box::new(GraphicsWGPU::new()));
-    engine.add_system_bundle(graphics.default_system_bundle());
+    engine.add_system_bundle(Graphics::default_system_bundle());
 
     WinitTuberRunner.run(engine, graphics)
 }

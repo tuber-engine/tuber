@@ -1,11 +1,12 @@
 use tuber::graphics::camera::{Active, OrthographicCamera};
 use tuber::graphics::shape::RectangleShape;
-use tuber::graphics::{transform::Transform2D, Graphics};
+use tuber::graphics::Graphics;
 use tuber::graphics_wgpu::GraphicsWGPU;
 use tuber::keyboard::Key;
 use tuber::Input::{KeyDown, KeyUp};
 use tuber::*;
 use tuber::{ecs::ecs::Ecs, ecs::query::accessors::*, ecs::system::*, Result};
+use tuber_common::transform::Transform2D;
 
 fn main() -> Result<()> {
     let mut engine = Engine::new();
@@ -42,7 +43,7 @@ fn main() -> Result<()> {
     let mut bundle = SystemBundle::new();
     bundle.add_system(move_camera_right_system);
     engine.add_system_bundle(bundle);
-    engine.add_system_bundle(graphics.default_system_bundle());
+    engine.add_system_bundle(Graphics::default_system_bundle());
     WinitTuberRunner.run(engine, graphics)
 }
 

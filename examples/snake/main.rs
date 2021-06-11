@@ -1,12 +1,13 @@
 use rand::{thread_rng, Rng};
 use std::collections::VecDeque;
 use tuber::graphics::camera::{Active, OrthographicCamera};
-use tuber::graphics::{sprite::*, transform::Transform2D, Graphics};
+use tuber::graphics::{sprite::*, Graphics};
 use tuber::graphics_wgpu::GraphicsWGPU;
 use tuber::keyboard::Key;
 use tuber::Input::KeyDown;
 use tuber::*;
 use tuber::{ecs::ecs::Ecs, ecs::query::accessors::*, ecs::system::*, Result};
+use tuber_common::transform::Transform2D;
 use tuber_core::ecs::EntityIndex;
 
 const WINDOW_WIDTH: u32 = 800;
@@ -71,7 +72,7 @@ fn main() -> Result<()> {
     bundle.add_system(eat_apple_system);
     bundle.add_system(check_collision_with_body_system);
     engine.add_system_bundle(bundle);
-    engine.add_system_bundle(graphics.default_system_bundle());
+    engine.add_system_bundle(Graphics::default_system_bundle());
     WinitTuberRunner.run(engine, graphics)
 }
 

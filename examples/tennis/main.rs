@@ -2,10 +2,11 @@ use tuber::ecs::ecs::Ecs;
 use tuber::ecs::query::accessors::{R, W};
 use tuber::ecs::system::SystemBundle;
 use tuber::graphics::camera::{Active, OrthographicCamera};
-use tuber::graphics::{shape::*, transform::Transform2D, Graphics};
+use tuber::graphics::{shape::*, Graphics};
 use tuber::graphics_wgpu::GraphicsWGPU;
 use tuber::keyboard::Key;
 use tuber::*;
+use tuber_common::transform::Transform2D;
 
 const BALL_COUNT: usize = 20;
 const PADDLE_WIDTH: f32 = 20.0;
@@ -103,7 +104,7 @@ fn main() -> tuber::Result<()> {
     bundle.add_system(move_ball_system);
     bundle.add_system(move_paddle_system);
     bundle.add_system(collision_system);
-    engine.add_system_bundle(graphics.default_system_bundle());
+    engine.add_system_bundle(Graphics::default_system_bundle());
     engine.add_system_bundle(bundle);
 
     runner.run(engine, graphics)

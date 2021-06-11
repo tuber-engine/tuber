@@ -79,7 +79,7 @@ fn main() -> tuber::Result<()> {
 
     let mut bundle = SystemBundle::new();
     bundle.add_system(move_camera_system);
-    engine.add_system_bundle(graphics.default_system_bundle());
+    engine.add_system_bundle(Graphics::default_system_bundle());
     engine.add_system_bundle(bundle);
 
     runner.run(engine, graphics)
