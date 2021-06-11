@@ -59,3 +59,23 @@ impl Default for RigidBody2D {
         }
     }
 }
+
+pub struct StaticBody2D;
+
+pub struct CollisionBox {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+}
+
+impl CollisionBox {
+    pub fn from_center(x_center: f32, y_center: f32, width: f32, height: f32) -> Self {
+        Self {
+            x: x_center - width / 2.0,
+            y: y_center - height / 2.0,
+            width,
+            height,
+        }
+    }
+}
