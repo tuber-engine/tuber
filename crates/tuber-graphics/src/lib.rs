@@ -4,13 +4,13 @@ use crate::shape::RectangleShape;
 use crate::sprite::{sprite_animation_step_system, AnimatedSprite, Sprite};
 use crate::texture::{TextureAtlas, TextureData, TextureMetadata, TextureRegion, TextureSource};
 use crate::tilemap::TilemapRender;
-use crate::transform::Transform2D;
 use image::ImageError;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
 use tuber_common::tilemap::Tilemap;
+use tuber_common::transform::Transform2D;
 use tuber_ecs::ecs::Ecs;
 use tuber_ecs::query::accessors::{R, W};
 use tuber_ecs::system::SystemBundle;
@@ -217,7 +217,7 @@ impl Graphics {
         );
     }
 
-    pub fn default_system_bundle(&mut self) -> SystemBundle {
+    pub fn default_system_bundle() -> SystemBundle {
         let mut system_bundle = SystemBundle::new();
         system_bundle.add_system(sprite_animation_step_system);
         system_bundle

@@ -7,7 +7,7 @@ use crate::input::InputState;
 
 pub mod input;
 
-pub struct DeltaTime(f64);
+pub struct DeltaTime(pub f64);
 
 pub struct Engine {
     ecs: Ecs,

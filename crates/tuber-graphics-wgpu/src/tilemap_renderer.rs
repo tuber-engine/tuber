@@ -3,10 +3,12 @@ use crate::Vertex;
 use cgmath::{Matrix4, Transform};
 use std::collections::HashMap;
 use tuber_common::tilemap::Tilemap;
+use tuber_common::transform::Transform2D;
 use tuber_graphics::camera::OrthographicCamera;
+use tuber_graphics::texture::TextureAtlas;
 use tuber_graphics::texture::TextureRegion;
 use tuber_graphics::tilemap::TilemapRender;
-use tuber_graphics::{texture::TextureAtlas, transform::Transform2D};
+use tuber_graphics::transform::IntoMatrix4;
 use wgpu::util::DeviceExt;
 use wgpu::{BufferDescriptor, Device, FragmentState, Queue, RenderPass, TextureFormat};
 
@@ -276,7 +278,7 @@ impl TilemapRenderer {
             camera.near,
             camera.far,
         );
-        let view_matrix: Matrix4<f32> = (*transform).into();
+        let view_matrix: Matrix4<f32> = (*transform).into_matrix4();
         let view_proj = projection_matrix * view_matrix.inverse_transform().unwrap();
         let uniform = Uniforms {
             view_proj: view_proj.into(),

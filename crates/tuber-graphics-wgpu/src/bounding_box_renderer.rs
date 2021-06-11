@@ -1,7 +1,8 @@
 use crate::Vertex;
 use cgmath::{Matrix4, Point3, Transform};
+use tuber_common::transform::Transform2D;
 use tuber_graphics::camera::OrthographicCamera;
-use tuber_graphics::transform::Transform2D;
+use tuber_graphics::transform::IntoMatrix4;
 use wgpu::util::DeviceExt;
 use wgpu::{
     BindGroupLayout, BufferDescriptor, BufferUsage, Device, FragmentState, Queue, RenderPass,
@@ -121,7 +122,7 @@ impl BoundingBoxRenderer {
     }
 
     pub fn prepare(&mut self, queue: &Queue, width: f32, height: f32, transform_2d: &Transform2D) {
-        let transform_matrix: Matrix4<f32> = transform_2d.clone().into();
+        let transform_matrix: Matrix4<f32> = transform_2d.clone().into_matrix4();
         let top_left: Point3<f32> = transform_matrix.transform_point(Point3::new(0f32, 0f32, 0f32));
         let top_right: Point3<f32> =
             transform_matrix.transform_point(Point3::new(width, 0f32, 0f32));
@@ -202,7 +203,7 @@ impl BoundingBoxRenderer {
             camera.near,
             camera.far,
         );
-        let view_matrix: Matrix4<f32> = (*transform).into();
+        let view_matrix: Matrix4<f32> = (*transform).into_matrix4();
         let view_proj = projection_matrix * view_matrix;
         let uniform = Uniforms {
             view_proj: view_proj.into(),

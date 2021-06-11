@@ -2,9 +2,11 @@ use crate::texture::Texture;
 use crate::Vertex;
 use cgmath::{Matrix4, Transform, Vector2, Vector3, Vector4, Zero};
 use std::collections::HashMap;
+use tuber_common::transform::Transform2D;
 use tuber_graphics::camera::OrthographicCamera;
+use tuber_graphics::low_level::QuadDescription;
 use tuber_graphics::texture::TextureData;
-use tuber_graphics::{low_level::QuadDescription, transform::Transform2D};
+use tuber_graphics::transform::IntoMatrix4;
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
     BindGroupLayout, BufferDescriptor, Device, FragmentState, Queue, RenderPass, RenderPipeline,
@@ -306,7 +308,7 @@ impl QuadRenderer {
         }
 
         let instance = Instance {
-            model: (*transform_2d).into(),
+            model: (*transform_2d).into_matrix4(),
             color: Vector3 {
                 x: quad.color.0,
                 y: quad.color.1,
@@ -395,7 +397,7 @@ impl QuadRenderer {
             camera.near,
             camera.far,
         );
-        let view_matrix: Matrix4<f32> = (*transform).into();
+        let view_matrix: Matrix4<f32> = (*transform).into_matrix4();
         let view_proj = projection_matrix * view_matrix.inverse_transform().unwrap();
         let uniform = Uniforms {
             view_proj: view_proj.into(),
