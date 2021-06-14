@@ -1,8 +1,7 @@
 use crate::Vertex;
 use nalgebra::{Matrix4, Point3, Transform};
-use tuber_common::transform::Transform2D;
+use tuber_common::transform::{IntoMatrix4, Transform2D};
 use tuber_graphics::camera::OrthographicCamera;
-use tuber_graphics::transform::IntoMatrix4;
 use wgpu::util::DeviceExt;
 use wgpu::{
     BindGroupLayout, BufferDescriptor, BufferUsage, Device, FragmentState, Queue, RenderPass,

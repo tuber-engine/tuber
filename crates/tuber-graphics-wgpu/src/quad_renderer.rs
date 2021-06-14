@@ -3,11 +3,10 @@ use crate::Vertex;
 use nalgebra::{Matrix4, Transform, Vector2, Vector3, Vector4};
 use num_traits::identities::Zero;
 use std::collections::HashMap;
-use tuber_common::transform::Transform2D;
+use tuber_common::transform::{IntoMatrix4, Transform2D};
 use tuber_graphics::camera::OrthographicCamera;
 use tuber_graphics::low_level::QuadDescription;
 use tuber_graphics::texture::TextureData;
-use tuber_graphics::transform::IntoMatrix4;
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
     BindGroupLayout, BufferDescriptor, Device, FragmentState, Queue, RenderPass, RenderPipeline,

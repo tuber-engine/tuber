@@ -30,7 +30,6 @@ pub mod shape;
 pub mod sprite;
 pub mod texture;
 pub mod tilemap;
-pub mod transform;
 
 pub type Color = (f32, f32, f32);
 

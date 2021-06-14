@@ -3,12 +3,11 @@ use crate::Vertex;
 use nalgebra::{Matrix4, Transform};
 use std::collections::HashMap;
 use tuber_common::tilemap::Tilemap;
-use tuber_common::transform::Transform2D;
+use tuber_common::transform::{IntoMatrix4, Transform2D};
 use tuber_graphics::camera::OrthographicCamera;
 use tuber_graphics::texture::TextureAtlas;
 use tuber_graphics::texture::TextureRegion;
 use tuber_graphics::tilemap::TilemapRender;
-use tuber_graphics::transform::IntoMatrix4;
 use wgpu::util::DeviceExt;
 use wgpu::{BufferDescriptor, Device, FragmentState, Queue, RenderPass, TextureFormat};
 
