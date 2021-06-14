@@ -47,18 +47,36 @@ pub mod keyboard {
     }
 }
 
+pub mod mouse {
+    #[derive(Debug, Copy, Clone)]
+    pub enum Button {
+        Left,
+        Right,
+        Middle,
+    }
+}
+
 pub enum Input {
     KeyDown(keyboard::Key),
     KeyUp(keyboard::Key),
+    MouseMotion((f32, f32)),
+    MouseButtonDown(mouse::Button),
+    MouseButtonUp(mouse::Button),
 }
 
 pub struct InputState {
     key_state: [bool; 43],
+    mouse_button_state: [bool; 3],
+    last_mouse_position: (f32, f32),
+    mouse_moved: bool,
 }
 impl InputState {
     pub fn new() -> Self {
         Self {
             key_state: [false; 43],
+            mouse_button_state: [false; 3],
+            last_mouse_position: (0.0, 0.0),
+            mouse_moved: false,
         }
     }
 
@@ -66,13 +84,31 @@ impl InputState {
         match input {
             Input::KeyDown(key) => self.key_state[key as usize],
             Input::KeyUp(key) => !self.key_state[key as usize],
+            Input::MouseButtonDown(button) => self.mouse_button_state[button as usize],
+            Input::MouseButtonUp(button) => !self.mouse_button_state[button as usize],
+            Input::MouseMotion(..) => self.mouse_moved,
         }
     }
 
     pub fn handle_input(&mut self, input: Input) {
+        self.mouse_moved = false;
         match input {
             Input::KeyDown(key) => self.key_state[key as usize] = true,
             Input::KeyUp(key) => self.key_state[key as usize] = false,
+            Input::MouseButtonDown(button) => {
+                self.mouse_button_state[button as usize] = true;
+            }
+            Input::MouseButtonUp(button) => {
+                self.mouse_button_state[button as usize] = false;
+            }
+            Input::MouseMotion(new_position) => {
+                self.last_mouse_position = new_position;
+                self.mouse_moved = true;
+            }
         }
+    }
+
+    pub fn mouse_position(&self) -> (f32, f32) {
+        self.last_mouse_position
     }
 }

@@ -1,10 +1,11 @@
 use std::convert::{TryFrom, TryInto};
 use std::time::Instant;
 use tuber_core::input::keyboard::Key;
+use tuber_core::input::mouse::Button;
 use tuber_core::input::Input;
 use tuber_core::{Engine, Result as TuberResult, TuberRunner};
 use tuber_graphics::{render, Graphics, Window};
-use winit::event::{ElementState, KeyboardInput, VirtualKeyCode};
+use winit::event::{ElementState, KeyboardInput, MouseButton, VirtualKeyCode};
 use winit::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -14,6 +15,7 @@ use winit::{
 enum TuberWinitError {
     UnknownVirtualKeycode(VirtualKeyCode),
     UnknownKeyboardInput(KeyboardInput),
+    UnknownMouseButton(MouseButton),
 }
 
 pub struct WinitTuberRunner;
@@ -57,6 +59,20 @@ impl TuberRunner for WinitTuberRunner {
                     }
                 }
                 Event::WindowEvent {
+                    event: WindowEvent::MouseInput { button, state, .. },
+                    window_id,
+                } if window_id == window.id() => {
+                    if let Ok(input) = MouseInputWrapper(button, state).try_into() {
+                        engine.handle_input(input);
+                    }
+                }
+                Event::WindowEvent {
+                    event: WindowEvent::CursorMoved { position, .. },
+                    window_id,
+                } if window_id == window.id() => {
+                    engine.handle_input(Input::MouseMotion((position.x as f32, position.y as f32)));
+                }
+                Event::WindowEvent {
                     event: WindowEvent::Resized(new_size),
                     window_id,
                 } if window_id == window.id() => {
@@ -79,12 +95,6 @@ impl TuberRunner for WinitTuberRunner {
                 Event::RedrawRequested(_) => {
                     let current_render_time = Instant::now();
                     render(engine.ecs());
-                    println!(
-                        "Framerate: {}",
-                        1.0 / (current_render_time
-                            .duration_since(last_render_time)
-                            .as_secs_f64())
-                    );
                     last_render_time = current_render_time;
                 }
                 _ => (),
@@ -115,6 +125,25 @@ impl TryFrom<KeyboardInputWrapper> for Input {
             )),
             input => Err(TuberWinitError::UnknownKeyboardInput(input)),
         }
+    }
+}
+
+struct MouseInputWrapper(MouseButton, ElementState);
+impl TryFrom<MouseInputWrapper> for Input {
+    type Error = TuberWinitError;
+
+    fn try_from(input: MouseInputWrapper) -> Result<Self, Self::Error> {
+        let mouse_button = match input.0 {
+            MouseButton::Left => Button::Left,
+            MouseButton::Right => Button::Right,
+            MouseButton::Middle => Button::Middle,
+            button => return Err(TuberWinitError::UnknownMouseButton(button)),
+        };
+
+        Ok(match input.1 {
+            ElementState::Pressed => Input::MouseButtonDown(mouse_button),
+            ElementState::Released => Input::MouseButtonUp(mouse_button),
+        })
     }
 }
 
