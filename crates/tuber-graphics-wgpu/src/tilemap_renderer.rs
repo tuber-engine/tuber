@@ -1,6 +1,6 @@
 use crate::texture::Texture;
 use crate::Vertex;
-use cgmath::{Matrix4, Transform};
+use nalgebra::{Matrix4, Transform};
 use std::collections::HashMap;
 use tuber_common::tilemap::Tilemap;
 use tuber_common::transform::Transform2D;
@@ -270,7 +270,7 @@ impl TilemapRenderer {
         camera: &OrthographicCamera,
         transform: &Transform2D,
     ) {
-        let projection_matrix: Matrix4<f32> = cgmath::ortho(
+        let projection_matrix: Matrix4<f32> = Matrix4::new_orthographic(
             camera.left,
             camera.right,
             camera.bottom,
@@ -279,7 +279,7 @@ impl TilemapRenderer {
             camera.far,
         );
         let view_matrix: Matrix4<f32> = (*transform).into_matrix4();
-        let view_proj = projection_matrix * view_matrix.inverse_transform().unwrap();
+        let view_proj = projection_matrix * view_matrix.try_inverse().unwrap();
         let uniform = Uniforms {
             view_proj: view_proj.into(),
         };
@@ -313,7 +313,7 @@ struct Uniforms {
 impl Uniforms {
     fn new() -> Self {
         Self {
-            view_proj: cgmath::ortho(0.0, 800.0, 600.0, 0.0, -100.0, 100.0).into(),
+            view_proj: Matrix4::new_orthographic(0.0, 800.0, 600.0, 0.0, -100.0, 100.0).into(),
         }
     }
 }

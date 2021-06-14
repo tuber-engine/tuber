@@ -1,5 +1,6 @@
 use crate::GraphicsError;
 use crate::GraphicsError::{ImageDecodeError, TextureFileOpenFailure};
+use nalgebra::Vector4;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -135,9 +136,9 @@ impl TextureRegion {
     }
 }
 
-impl From<TextureRegion> for cgmath::Vector4<f32> {
+impl From<TextureRegion> for Vector4<f32> {
     fn from(region: TextureRegion) -> Self {
-        cgmath::Vector4::new(region.x, region.y, region.width, region.height)
+        Vector4::new(region.x, region.y, region.width, region.height)
     }
 }
 

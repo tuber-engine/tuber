@@ -1,6 +1,7 @@
 use crate::texture::Texture;
 use crate::Vertex;
-use cgmath::{Matrix4, Transform, Vector2, Vector3, Vector4, Zero};
+use nalgebra::{Matrix4, Transform, Vector2, Vector3, Vector4};
+use num_traits::identities::Zero;
 use std::collections::HashMap;
 use tuber_common::transform::Transform2D;
 use tuber_graphics::camera::OrthographicCamera;
@@ -309,15 +310,8 @@ impl QuadRenderer {
 
         let instance = Instance {
             model: (*transform_2d).into_matrix4(),
-            color: Vector3 {
-                x: quad.color.0,
-                y: quad.color.1,
-                z: quad.color.2,
-            },
-            size: Vector2 {
-                x: quad.width,
-                y: quad.height,
-            },
+            color: Vector3::new(quad.color.0, quad.color.1, quad.color.2),
+            size: Vector2::new(quad.width, quad.height),
             texture_rectangle: match &quad.texture {
                 Some(texture_description) => texture_description.texture_region.into(),
                 None => Vector4::zero(),
@@ -389,7 +383,7 @@ impl QuadRenderer {
         camera: &OrthographicCamera,
         transform: &Transform2D,
     ) {
-        let projection_matrix: Matrix4<f32> = cgmath::ortho(
+        let projection_matrix: Matrix4<f32> = Matrix4::new_orthographic(
             camera.left,
             camera.right,
             camera.bottom,
@@ -398,7 +392,7 @@ impl QuadRenderer {
             camera.far,
         );
         let view_matrix: Matrix4<f32> = (*transform).into_matrix4();
-        let view_proj = projection_matrix * view_matrix.inverse_transform().unwrap();
+        let view_proj = projection_matrix * view_matrix.try_inverse().unwrap();
         let uniform = Uniforms {
             view_proj: view_proj.into(),
         };
@@ -407,10 +401,10 @@ impl QuadRenderer {
 }
 
 struct Instance {
-    model: cgmath::Matrix4<f32>,
-    color: cgmath::Vector3<f32>,
-    size: cgmath::Vector2<f32>,
-    texture_rectangle: cgmath::Vector4<f32>,
+    model: Matrix4<f32>,
+    color: Vector3<f32>,
+    size: Vector2<f32>,
+    texture_rectangle: Vector4<f32>,
 }
 
 impl Instance {
@@ -494,7 +488,7 @@ struct Uniforms {
 impl Uniforms {
     fn new() -> Self {
         Self {
-            view_proj: cgmath::ortho(0.0, 800.0, 600.0, 0.0, -100.0, 100.0).into(),
+            view_proj: Matrix4::new_orthographic(0.0, 800.0, 600.0, 0.0, -100.0, 100.0).into(),
         }
     }
 }

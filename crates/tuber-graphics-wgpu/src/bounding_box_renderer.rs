@@ -1,5 +1,5 @@
 use crate::Vertex;
-use cgmath::{Matrix4, Point3, Transform};
+use nalgebra::{Matrix4, Point3, Transform};
 use tuber_common::transform::Transform2D;
 use tuber_graphics::camera::OrthographicCamera;
 use tuber_graphics::transform::IntoMatrix4;
@@ -123,13 +123,14 @@ impl BoundingBoxRenderer {
 
     pub fn prepare(&mut self, queue: &Queue, width: f32, height: f32, transform_2d: &Transform2D) {
         let transform_matrix: Matrix4<f32> = transform_2d.clone().into_matrix4();
-        let top_left: Point3<f32> = transform_matrix.transform_point(Point3::new(0f32, 0f32, 0f32));
+        let top_left: Point3<f32> =
+            transform_matrix.transform_point(&Point3::new(0f32, 0f32, 0f32));
         let top_right: Point3<f32> =
-            transform_matrix.transform_point(Point3::new(width, 0f32, 0f32));
+            transform_matrix.transform_point(&Point3::new(width, 0f32, 0f32));
         let bottom_left: Point3<f32> =
-            transform_matrix.transform_point(Point3::new(0f32, height, 0f32));
+            transform_matrix.transform_point(&Point3::new(0f32, height, 0f32));
         let bottom_right: Point3<f32> =
-            transform_matrix.transform_point(Point3::new(width, height, 0f32));
+            transform_matrix.transform_point(&Point3::new(width, height, 0f32));
 
         queue.write_buffer(
             &self.vertex_buffer,
@@ -195,7 +196,7 @@ impl BoundingBoxRenderer {
         camera: &OrthographicCamera,
         transform: &Transform2D,
     ) {
-        let projection_matrix: Matrix4<f32> = cgmath::ortho(
+        let projection_matrix: Matrix4<f32> = Matrix4::new_orthographic(
             camera.left,
             camera.right,
             camera.bottom,
@@ -221,7 +222,7 @@ struct Uniforms {
 impl Uniforms {
     fn new() -> Self {
         Self {
-            view_proj: cgmath::ortho(0.0, 800.0, 600.0, 0.0, -100.0, 100.0).into(),
+            view_proj: Matrix4::new_orthographic(0.0, 800.0, 600.0, 0.0, -100.0, 100.0).into(),
         }
     }
 }
