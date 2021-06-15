@@ -1,11 +1,11 @@
 //! The ecs module defines the Ecs struct which is the main entry point of tuber-ecs
 
 use crate::bitset::BitSet;
-use crate::query::{Query, QueryIterator};
+use crate::query::{Query, QueryIterator, QueryIteratorByIds};
 use crate::EntityIndex;
 use std::any::{Any, TypeId};
 use std::cell::{Ref, RefCell, RefMut};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 pub type Components = HashMap<TypeId, ComponentStore>;
 pub type Resources = HashMap<TypeId, RefCell<Box<dyn Any>>>;
@@ -112,6 +112,10 @@ impl Ecs {
 
     pub fn query<'a, Q: Query<'a>>(&self) -> QueryIterator<Q> {
         QueryIterator::new(self.entity_count(), &self.components)
+    }
+
+    pub fn query_by_ids<'a, Q: Query<'a>>(&self, ids: &HashSet<usize>) -> QueryIteratorByIds<Q> {
+        QueryIteratorByIds::new(self.entity_count(), &self.components, ids)
     }
 
     pub fn query_one<'a, Q: Query<'a>>(&'a self) -> Option<Q::ResultType> {

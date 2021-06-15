@@ -50,6 +50,36 @@ impl_query_tuples!(A, B, C, D, E, F,);
 impl_query_tuples!(A, B, C, D, E, F, G,);
 impl_query_tuples!(A, B, C, D, E, F, G, H,);
 
+pub struct QueryIteratorByIds<'a, Q> {
+    inner_iterator: QueryIterator<'a, Q>,
+    ids: HashSet<usize>,
+}
+
+impl<'a, 'b, Q: Query<'b>> QueryIteratorByIds<'a, Q> {
+    pub fn new(entity_count: usize, components: &'a Components, ids: &HashSet<usize>) -> Self {
+        Self {
+            inner_iterator: QueryIterator::new(entity_count, components),
+            ids: ids.iter().cloned().collect(),
+        }
+    }
+}
+
+impl<'a, Q> Iterator for QueryIteratorByIds<'a, Q>
+where
+    Q: Query<'a>,
+{
+    type Item = Q::ResultType;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut next = self.inner_iterator.next();
+        while !self.ids.contains(&self.inner_iterator.index) && !next.is_none() {
+            next = self.inner_iterator.next();
+        }
+
+        next
+    }
+}
+
 pub struct QueryIterator<'a, Q> {
     index: EntityIndex,
     components: &'a Components,
