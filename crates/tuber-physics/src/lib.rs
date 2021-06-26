@@ -76,14 +76,9 @@ pub fn physics_update_system(ecs: &mut Ecs) {
             }
         }
     }
-
-    for (_, (mut rectangle_shape,)) in ecs.query::<(W<RectangleShape>,)>() {
-        rectangle_shape.color = (0.0, 1.0, 0.0);
-    }
-    for (id, (mut rectangle_shape, mut rigid_body, mut transform)) in
-        ecs.query_by_ids::<(W<RectangleShape>, W<RigidBody2D>, W<Transform2D>)>(&colliding)
+    for (id, (mut rigid_body, mut transform)) in
+        ecs.query_by_ids::<(W<RigidBody2D>, W<Transform2D>)>(&colliding)
     {
-        rectangle_shape.color = (1.0, 0.0, 0.0);
         let collision_data = collisions.get(&id).unwrap();
         transform.translation.0 += collision_data.minimum_translation_vector().x;
         transform.translation.1 += collision_data.minimum_translation_vector().y;
