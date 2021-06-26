@@ -10,4 +10,5 @@ edition = "2018"
 nalgebra = "0.27"
 tuber-core = { path = "../tuber-core" }
 tuber-ecs = { path = "../tuber-ecs" }
-tuber-common = { path = "../tuber-common"}
+tuber-common = { path = "../tuber-common" }
+tuber-graphics = { path = "../tuber-graphics" }
