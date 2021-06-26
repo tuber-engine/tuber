@@ -222,6 +222,10 @@ impl Graphics {
         system_bundle
     }
 
+    pub fn set_clear_color(&mut self, clear_color: Color) {
+        self.graphics_impl.set_clear_color(clear_color);
+    }
+
     pub fn set_bounding_box_rendering(&mut self, enabled: bool) {
         self.bounding_box_rendering = enabled;
     }

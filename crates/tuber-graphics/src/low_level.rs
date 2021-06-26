@@ -31,6 +31,7 @@ pub trait LowLevelGraphicsAPI {
         transform: &Transform2D,
     );
 
+    fn set_clear_color(&mut self, color: Color);
     fn on_window_resized(&mut self, size: WindowSize);
 }
 

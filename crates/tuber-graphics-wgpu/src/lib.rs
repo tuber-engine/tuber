@@ -10,8 +10,8 @@ use tuber_graphics::camera::OrthographicCamera;
 use tuber_graphics::texture::TextureData;
 use tuber_graphics::tilemap::TilemapRender;
 use tuber_graphics::{
-    low_level::LowLevelGraphicsAPI, low_level::QuadDescription, texture::TextureAtlas, Window,
-    WindowSize,
+    low_level::LowLevelGraphicsAPI, low_level::QuadDescription, texture::TextureAtlas, Color,
+    Window, WindowSize,
 };
 
 mod bounding_box_renderer;
@@ -26,6 +26,7 @@ pub struct GraphicsWGPU {
     wgpu_state: Option<WGPUState>,
     textures: HashMap<String, Texture>,
     camera_id: Option<usize>,
+    clear_color: Color,
 }
 
 pub struct WGPUState {
@@ -46,6 +47,7 @@ impl GraphicsWGPU {
             wgpu_state: None,
             textures: HashMap::new(),
             camera_id: None,
+            clear_color: (0.0, 0.0, 0.0),
         }
     }
 }
@@ -122,9 +124,9 @@ impl LowLevelGraphicsAPI for GraphicsWGPU {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.0,
-                            g: 0.0,
-                            b: 0.0,
+                            r: self.clear_color.0 as f64,
+                            g: self.clear_color.1 as f64,
+                            b: self.clear_color.2 as f64,
                             a: 1.0,
                         }),
                         store: true,
@@ -212,6 +214,10 @@ impl LowLevelGraphicsAPI for GraphicsWGPU {
         state
             .bounding_box_renderer
             .set_camera(&state.queue, camera, transform);
+    }
+
+    fn set_clear_color(&mut self, color: (f32, f32, f32)) {
+        self.clear_color = color;
     }
 
     fn on_window_resized(&mut self, new_size: WindowSize) {
