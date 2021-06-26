@@ -1,4 +1,4 @@
-use crate::{CollisionShape, Polygon, Vector2};
+use crate::{CollisionShape, Vector2};
 
 pub fn are_colliding(
     first_shape: &CollisionShape,

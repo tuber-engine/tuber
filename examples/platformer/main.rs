@@ -1,20 +1,14 @@
-use std::collections::HashSet;
 use tuber::ecs::ecs::Ecs;
 use tuber::ecs::query::accessors::{R, W};
 use tuber::ecs::system::SystemBundle;
 use tuber::graphics::camera::{Active, OrthographicCamera};
 use tuber::graphics::shape::RectangleShape;
-use tuber::graphics::tilemap::TilemapRender;
 use tuber::graphics::Graphics;
 use tuber::graphics_wgpu::GraphicsWGPU;
 use tuber::keyboard::Key;
-use tuber::Input::{KeyDown, KeyUp};
 use tuber::*;
-use tuber_common::tilemap::{Tile, Tilemap};
 use tuber_common::transform::Transform2D;
 use tuber_physics::{CollisionShape, Physics, RigidBody2D, StaticBody2D};
-
-struct MapUpdateTimer(std::time::Instant);
 
 fn main() -> tuber::Result<()> {
     let mut engine = Engine::new();
@@ -79,7 +73,7 @@ fn main() -> tuber::Result<()> {
     ));
 
     let mut runner = WinitTuberRunner;
-    let mut graphics = Graphics::new(Box::new(GraphicsWGPU::new()));
+    let graphics = Graphics::new(Box::new(GraphicsWGPU::new()));
     engine.ecs().insert_resource(Physics::new((0.0, 1.0)));
 
     engine.add_system_bundle(Physics::default_system_bundle());

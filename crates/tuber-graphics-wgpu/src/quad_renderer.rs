@@ -1,6 +1,6 @@
 use crate::texture::Texture;
 use crate::Vertex;
-use nalgebra::{Matrix4, Transform, Vector2, Vector3, Vector4};
+use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 use num_traits::identities::Zero;
 use std::collections::HashMap;
 use tuber_common::transform::{IntoMatrix4, Transform2D};

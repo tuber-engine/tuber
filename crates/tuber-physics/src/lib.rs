@@ -1,13 +1,12 @@
 mod sat;
 
-use nalgebra::{Point2, Point3, Point4};
+use nalgebra::{Point2, Point3};
 use std::collections::{HashMap, HashSet};
 use tuber_common::transform::{IntoMatrix4, Transform2D};
 use tuber_core::DeltaTime;
 use tuber_ecs::ecs::Ecs;
 use tuber_ecs::query::accessors::{R, W};
 use tuber_ecs::system::SystemBundle;
-use tuber_graphics::shape::RectangleShape;
 
 type Vector2 = nalgebra::Vector2<f32>;
 
@@ -116,7 +115,7 @@ impl Polygon {
         let initial_point = point_iterator.next().unwrap();
         let mut first_point = initial_point;
         while let Some(next) = point_iterator.next() {
-            let mut second_point = next;
+            let second_point = next;
 
             axes.push(
                 Vector2::new(
