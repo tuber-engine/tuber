@@ -1,5 +1,5 @@
 use crate::GraphicsError;
-use crate::GraphicsError::{ImageDecodeError, TextureFileOpenFailure};
+use crate::GraphicsError::{ImageDecodeError, TextureFileOpenError};
 use nalgebra::Vector4;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -27,7 +27,7 @@ impl TextureData {
     pub fn from_file(file_path: &str) -> Result<TextureData, GraphicsError> {
         use image::io::Reader as ImageReader;
         let image = ImageReader::open(file_path)
-            .map_err(|e| TextureFileOpenFailure(e))?
+            .map_err(|e| TextureFileOpenError(e))?
             .decode()
             .map_err(|e| ImageDecodeError(e))?;
         let image = image.as_rgba8().unwrap();

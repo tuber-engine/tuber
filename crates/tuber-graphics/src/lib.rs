@@ -18,7 +18,7 @@ use tuber_ecs::EntityIndex;
 
 #[derive(Debug)]
 pub enum GraphicsError {
-    TextureFileOpenFailure(std::io::Error),
+    TextureFileOpenError(std::io::Error),
     AtlasDescriptionFileOpenError(std::io::Error),
     ImageDecodeError(ImageError),
     SerdeError(serde_json::error::Error),
