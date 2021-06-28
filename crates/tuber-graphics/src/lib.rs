@@ -22,6 +22,7 @@ pub enum GraphicsError {
     AtlasDescriptionFileOpenError(std::io::Error),
     ImageDecodeError(ImageError),
     SerdeError(serde_json::error::Error),
+    BitmapFontFileReadError(std::io::Error),
 }
 
 pub mod camera;
@@ -30,6 +31,7 @@ pub mod shape;
 pub mod sprite;
 pub mod texture;
 pub mod tilemap;
+pub mod bitmap_font;
 
 pub type Color = (f32, f32, f32);
 
