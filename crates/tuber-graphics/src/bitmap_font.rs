@@ -4,12 +4,10 @@ use std::str::FromStr;
 use serde::{Serialize, Deserialize};
 use crate::texture::TextureRegion;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BitmapFont {
-    /// Identifier of the bitmap font
-    identifier: String,
-    /// Identifier of the texture atlas
-    font_atlas_identifier: String,
+    /// Path of the font atlas
+    font_atlas_path: String,
     /// The region of the bitmap font on the texture atlas
     font_atlas_region: TextureRegion,
     /// The glyphs data
@@ -18,15 +16,11 @@ pub struct BitmapFont {
 
 
 impl BitmapFont {
-    pub fn identifier(&self) -> &str {
-        &self.identifier
+    pub fn font_atlas_path(&self) -> &str {
+        &self.font_atlas_path
     }
 
-    pub fn texture_atlas_identifier(&self) -> &str {
-        &self.font_atlas_identifier
-    }
-
-    pub fn texture_atlas_region(&self) -> TextureRegion {
+    pub fn font_atlas_region(&self) -> TextureRegion {
         self.font_atlas_region
     }
 
@@ -48,7 +42,7 @@ impl FromStr for BitmapFont {
 }
 
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BitmapGlyph {
     region: TextureRegion
 }
@@ -67,8 +61,7 @@ mod tests {
     fn parse_from_json() -> Result<(), GraphicsError> {
         let json = r#"
         {
-            "identifier": "font",
-            "font_atlas_identifier": "font_atlas",
+            "font_atlas_path": "font_atlas",
             "font_atlas_region": {
                 "x": 0,
                 "y": 0,
@@ -97,8 +90,7 @@ mod tests {
         "#;
 
         let bitmap_font = BitmapFont::from_str(json)?;
-        assert_eq!(bitmap_font.identifier, "font");
-        assert_eq!(bitmap_font.font_atlas_identifier, "font_atlas");
+        assert_eq!(bitmap_font.font_atlas_path, "font_atlas");
         assert_eq!(bitmap_font.glyphs.len(), 2);
         assert!(bitmap_font.glyphs.contains_key(&'A'));
         assert!(bitmap_font.glyphs.contains_key(&'D'));
