@@ -30,10 +30,13 @@ fn main() -> tuber::Result<()> {
     ));
 
     engine.ecs().insert((
-        Text::new("HELLO WORLD", "examples/bitmap-font/font.json"),
+        Text::new(
+            "Hello World\nThis is a second line",
+            "examples/bitmap-font/font.json",
+        ),
         Transform2D {
-            translation: (0.0, 0.0),
-            angle: 45.0,
+            translation: (100.0, 100.0),
+            angle: 0.0,
             ..Default::default()
         },
     ));

@@ -252,19 +252,30 @@ impl Graphics {
             .expect("Font region not found");
 
         let mut offset_x = transform.translation.0;
+        let mut offset_y = transform.translation.1;
         for character in text.text().chars() {
-            if character == ' ' {
-                // TODO remove arbitrary value
-                offset_x += 32.0;
+            if character == '\n' {
+                offset_y += (font.line_height() + font.line_spacing()) as f32;
+                offset_x = transform.translation.0;
                 continue;
             }
 
-            let glyph_data = font.glyph(character).expect("Glyph not found");
+            let glyph_data = if font.ignore_case() {
+                if let Some(glyph) = font.glyph(character.to_ascii_uppercase()) {
+                    glyph
+                } else {
+                    font.glyph(character.to_ascii_lowercase())
+                        .expect("Glyph not found")
+                }
+            } else {
+                font.glyph(character).expect("Glyph not found")
+            };
+
             let glyph_region = glyph_data.region();
             let mut glyph_transform = transform.clone();
-            offset_x += glyph_region.width;
             glyph_transform.translation.0 = offset_x;
-            glyph_transform.rotation_center = (-offset_x, 0.0);
+            glyph_transform.translation.1 = offset_y;
+            glyph_transform.rotation_center = (-offset_x, -offset_y);
 
             self.graphics_impl.prepare_quad(
                 &QuadDescription {
@@ -284,6 +295,8 @@ impl Graphics {
                 &glyph_transform,
                 false,
             );
+
+            offset_x += glyph_region.width + font.letter_spacing() as f32;
         }
     }
 
