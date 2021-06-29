@@ -1,9 +1,11 @@
+use crate::bitmap_font::BitmapFont;
 use crate::camera::{Active, OrthographicCamera};
 use crate::low_level::*;
 use crate::shape::RectangleShape;
 use crate::sprite::{sprite_animation_step_system, AnimatedSprite, Sprite};
 use crate::texture::{TextureAtlas, TextureData, TextureMetadata, TextureRegion, TextureSource};
 use crate::tilemap::TilemapRender;
+use crate::ui::Text;
 use image::ImageError;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use std::collections::HashMap;
@@ -25,13 +27,14 @@ pub enum GraphicsError {
     BitmapFontFileReadError(std::io::Error),
 }
 
+pub mod bitmap_font;
 pub mod camera;
 pub mod low_level;
 pub mod shape;
 pub mod sprite;
 pub mod texture;
 pub mod tilemap;
-pub mod bitmap_font;
+pub mod ui;
 
 pub type Color = (f32, f32, f32);
 
@@ -47,6 +50,7 @@ pub struct Graphics {
     graphics_impl: Box<dyn LowLevelGraphicsAPI>,
     texture_metadata: HashMap<String, TextureMetadata>,
     texture_atlases: HashMap<String, TextureAtlas>,
+    fonts: HashMap<String, BitmapFont>,
     bounding_box_rendering: bool,
 }
 
@@ -56,6 +60,7 @@ impl Graphics {
             graphics_impl,
             texture_metadata: HashMap::new(),
             texture_atlases: HashMap::new(),
+            fonts: Default::default(),
             bounding_box_rendering: false,
         }
     }
@@ -80,8 +85,18 @@ impl Graphics {
         );
     }
 
-    fn load_texture_atlas(&mut self, texture_atlas_identifier: &str) -> Result<(), GraphicsError> {
-        let atlas_description_file = File::open(texture_atlas_identifier)
+    fn get_or_load_texture_atlas(
+        &mut self,
+        texture_atlas_path: &str,
+    ) -> Result<&TextureAtlas, GraphicsError> {
+        if !self.texture_atlases.contains_key(texture_atlas_path) {
+            self.load_texture_atlas(texture_atlas_path);
+        }
+        Ok(&self.texture_atlases[texture_atlas_path])
+    }
+
+    fn load_texture_atlas(&mut self, texture_atlas_path: &str) -> Result<(), GraphicsError> {
+        let atlas_description_file = File::open(texture_atlas_path)
             .map_err(|e| GraphicsError::AtlasDescriptionFileOpenError(e))?;
         let reader = BufReader::new(atlas_description_file);
         let texture_atlas: TextureAtlas =
@@ -95,7 +110,7 @@ impl Graphics {
         }
 
         self.texture_atlases
-            .insert(texture_atlas_identifier.to_owned(), texture_atlas);
+            .insert(texture_atlas_path.to_owned(), texture_atlas);
         Ok(())
     }
 
@@ -218,6 +233,66 @@ impl Graphics {
         );
     }
 
+    fn prepare_text(&mut self, text: &Text, transform: &Transform2D) {
+        if !self.fonts.contains_key(text.font()) {
+            self.load_font(text.font()).expect("Font not found");
+        }
+        let font_atlas_path = self.fonts[text.font()].font_atlas_path().to_owned();
+        if !self.texture_atlases.contains_key(&font_atlas_path) {
+            self.load_texture_atlas(&font_atlas_path);
+        }
+
+        let font = &self.fonts[text.font()];
+        let texture_atlas = &self.texture_atlases[font.font_atlas_path()];
+
+        let texture_identifier = texture_atlas.texture_identifier();
+        let texture = &self.texture_metadata[texture_identifier];
+        let font_region = texture_atlas
+            .texture_region(text.font())
+            .expect("Font region not found");
+
+        let mut offset_x = transform.translation.0;
+        for character in text.text().chars() {
+            if character == ' ' {
+                // TODO remove arbitrary value
+                offset_x += 32.0;
+                continue;
+            }
+
+            let glyph_data = font.glyph(character).expect("Glyph not found");
+            let glyph_region = glyph_data.region();
+            let mut glyph_transform = transform.clone();
+            offset_x += glyph_region.width;
+            glyph_transform.translation.0 = offset_x;
+            glyph_transform.rotation_center = (-offset_x, 0.0);
+
+            self.graphics_impl.prepare_quad(
+                &QuadDescription {
+                    width: glyph_region.width,
+                    height: glyph_region.height,
+                    color: (0.0, 0.0, 0.0),
+                    texture: Some(TextureDescription {
+                        identifier: texture_identifier.into(),
+                        texture_region: TextureRegion {
+                            x: (font_region.x + glyph_region.x) / texture.width as f32,
+                            y: (font_region.y + glyph_region.y) / texture.height as f32,
+                            width: glyph_region.width / texture.width as f32,
+                            height: glyph_region.height / texture.height as f32,
+                        },
+                    }),
+                },
+                &glyph_transform,
+                false,
+            );
+        }
+    }
+
+    fn load_font(&mut self, font_path: &str) -> Result<(), GraphicsError> {
+        let font = BitmapFont::from_file(font_path)?;
+        self.fonts.insert(font_path.into(), font);
+        Ok(())
+    }
+
     pub fn default_system_bundle() -> SystemBundle {
         let mut system_bundle = SystemBundle::new();
         system_bundle.add_system(sprite_animation_step_system);
@@ -261,6 +336,10 @@ pub fn render(ecs: &mut Ecs) {
         graphics
             .prepare_animated_sprite(&animated_sprite, &transform)
             .unwrap();
+    }
+
+    for (_, (text, transform)) in ecs.query::<(R<Text>, R<Transform2D>)>() {
+        graphics.prepare_text(&text, &transform);
     }
 
     for (_, (mut tilemap_render,)) in ecs.query::<(W<TilemapRender>,)>() {

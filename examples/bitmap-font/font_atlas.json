@@ -1,0 +1,11 @@
+{
+    "texture_identifier": "examples/bitmap-font/font_atlas.png",
+    "textures": {
+        "examples/bitmap-font/font.json": {
+            "x": 0,
+            "y": 0,
+            "width": 112,
+            "height": 64
+        }
+    }
+}
