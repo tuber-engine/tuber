@@ -40,7 +40,7 @@ impl TuberRunner for WinitTuberRunner {
             )),
             (window.inner_size().width, window.inner_size().height),
         );
-        engine.ecs().insert_resource(graphics);
+        engine.ecs().insert_shared_resource(graphics);
 
         event_loop.run(move |event, _, control_flow| {
             *control_flow = ControlFlow::Poll;

@@ -111,7 +111,7 @@ fn main() -> tuber::Result<()> {
 }
 
 fn move_paddle_system(ecs: &mut Ecs) {
-    let input_state = ecs.resource::<InputState>().unwrap();
+    let input_state = ecs.shared_resource::<InputState>().unwrap();
     for (_id, (mut transform, _)) in ecs.query::<(W<Transform2D>, R<Player>)>() {
         if input_state.is(Input::KeyDown(Key::Z)) {
             transform.translation.1 -= 5.0;

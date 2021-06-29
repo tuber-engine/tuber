@@ -48,7 +48,7 @@ fn main() -> Result<()> {
 }
 
 fn move_camera_right_system(ecs: &mut Ecs) {
-    let input_state = ecs.resource::<InputState>().unwrap();
+    let input_state = ecs.shared_resource::<InputState>().unwrap();
     let (_, (_, mut transform)) = ecs
         .query_one::<(R<OrthographicCamera>, W<Transform2D>)>()
         .unwrap();

@@ -4,6 +4,7 @@ pub use tuber_ecs as ecs;
 use tuber_graphics::Graphics;
 
 use crate::input::InputState;
+use std::collections::HashMap;
 
 pub mod input;
 
@@ -17,7 +18,7 @@ pub struct Engine {
 impl Engine {
     pub fn new() -> Engine {
         let mut ecs = Ecs::new();
-        ecs.insert_resource(InputState::new());
+        ecs.insert_shared_resource(InputState::new());
         Self {
             ecs,
             system_bundles: vec![],
@@ -25,7 +26,7 @@ impl Engine {
     }
 
     pub fn handle_input(&mut self, input: input::Input) {
-        let mut input_state = self.ecs.resource_mut::<InputState>().unwrap();
+        let mut input_state = self.ecs.shared_resource_mut::<InputState>().unwrap();
         input_state.handle_input(input);
     }
 
@@ -38,7 +39,7 @@ impl Engine {
     }
 
     pub fn step(&mut self, delta_time: f64) {
-        self.ecs.insert_resource(DeltaTime(delta_time));
+        self.ecs.insert_shared_resource(DeltaTime(delta_time));
         for bundle in &mut self.system_bundles {
             bundle.step(&mut self.ecs);
         }
@@ -51,7 +52,7 @@ impl Engine {
     }
 
     pub fn on_window_resized(&mut self, width: u32, height: u32) {
-        if let Some(mut graphics) = self.ecs.resource_mut::<Graphics>() {
+        if let Some(mut graphics) = self.ecs.shared_resource_mut::<Graphics>() {
             graphics.on_window_resized(width, height);
         }
     }

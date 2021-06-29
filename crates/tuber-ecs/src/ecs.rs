@@ -60,19 +60,19 @@ impl Ecs {
         }
     }
 
-    pub fn insert_resource<T: 'static>(&mut self, resource: T) {
+    pub fn insert_shared_resource<T: 'static>(&mut self, resource: T) {
         self.shared_resources
             .insert(TypeId::of::<T>(), RefCell::new(Box::new(resource)));
     }
 
-    pub fn resource<T: 'static>(&self) -> Option<Ref<T>> {
+    pub fn shared_resource<T: 'static>(&self) -> Option<Ref<T>> {
         Some(Ref::map(
             self.shared_resources.get(&TypeId::of::<T>())?.borrow(),
             |r| r.downcast_ref().unwrap(),
         ))
     }
 
-    pub fn resource_mut<T: 'static>(&self) -> Option<RefMut<T>> {
+    pub fn shared_resource_mut<T: 'static>(&self) -> Option<RefMut<T>> {
         Some(RefMut::map(
             self.shared_resources
                 .get(&TypeId::of::<T>())

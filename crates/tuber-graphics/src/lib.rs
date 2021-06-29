@@ -238,7 +238,7 @@ impl Graphics {
 }
 
 pub fn render(ecs: &mut Ecs) {
-    let mut graphics = ecs.resource_mut::<Graphics>().unwrap();
+    let mut graphics = ecs.shared_resource_mut::<Graphics>().unwrap();
 
     let (camera_id, (camera, _, camera_transform)) = ecs
         .query_one::<(R<OrthographicCamera>, R<Active>, R<Transform2D>)>()

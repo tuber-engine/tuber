@@ -42,9 +42,9 @@ impl Physics {
 
 pub fn physics_update_system(ecs: &mut Ecs) {
     let DeltaTime(delta_time) = *ecs
-        .resource::<DeltaTime>()
+        .shared_resource::<DeltaTime>()
         .expect("DeltaTime resource not found");
-    let mut physics = ecs.resource_mut::<Physics>().expect("No Physics resource");
+    let mut physics = ecs.shared_resource_mut::<Physics>().expect("No Physics resource");
 
     for (_, (mut transform, mut rigid_body)) in ecs.query::<(W<Transform2D>, W<RigidBody2D>)>() {
         physics.update_rigid_body_2d(delta_time, &mut transform, &mut rigid_body);

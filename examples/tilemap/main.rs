@@ -72,7 +72,7 @@ fn main() -> tuber::Result<()> {
 
     engine
         .ecs()
-        .insert_resource(MapUpdateTimer(std::time::Instant::now()));
+        .insert_shared_resource(MapUpdateTimer(std::time::Instant::now()));
 
     let mut runner = WinitTuberRunner;
     let mut graphics = Graphics::new(Box::new(GraphicsWGPU::new()));
@@ -86,7 +86,7 @@ fn main() -> tuber::Result<()> {
 }
 
 fn move_camera_system(ecs: &mut Ecs) {
-    let input_state = ecs.resource::<InputState>().unwrap();
+    let input_state = ecs.shared_resource::<InputState>().unwrap();
     let (_, (_, mut transform)) = ecs
         .query_one::<(R<OrthographicCamera>, W<Transform2D>)>()
         .unwrap();

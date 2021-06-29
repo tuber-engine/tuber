@@ -74,7 +74,7 @@ fn main() -> tuber::Result<()> {
 
     let mut runner = WinitTuberRunner;
     let graphics = Graphics::new(Box::new(GraphicsWGPU::new()));
-    engine.ecs().insert_resource(Physics::new((0.0, 1.0)));
+    engine.ecs().insert_shared_resource(Physics::new((0.0, 1.0)));
 
     engine.add_system_bundle(Physics::default_system_bundle());
     engine.add_system_bundle(Graphics::default_system_bundle());
@@ -87,7 +87,7 @@ fn main() -> tuber::Result<()> {
 }
 
 fn move_system(ecs: &mut Ecs) {
-    let input = ecs.resource::<InputState>().unwrap();
+    let input = ecs.shared_resource::<InputState>().unwrap();
     let (_, (mut rigid_body, transform)) =
         ecs.query_one::<(W<RigidBody2D>, R<Transform2D>)>().unwrap();
     let (_, (mut camera_transform, _)) = ecs
@@ -134,7 +134,7 @@ fn move_system(ecs: &mut Ecs) {
 }
 
 fn jump_system(ecs: &mut Ecs) {
-    let input = ecs.resource::<InputState>().unwrap();
+    let input = ecs.shared_resource::<InputState>().unwrap();
     let (_, (mut rigid_body,)) = ecs.query_one::<(W<RigidBody2D>,)>().unwrap();
     if input.is(Input::KeyDown(Key::Z)) {
         println!("{}", rigid_body.velocity.y.abs());
