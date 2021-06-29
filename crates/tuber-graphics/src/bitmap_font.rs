@@ -93,6 +93,9 @@ mod tests {
                 "width": 0,
                 "height": 0
             },
+            "line_height": 32,
+            "line_spacing": 4,
+            "ignore_case": false,
             "letter_spacing": 2,
             "glyphs": {
                 "A": {
@@ -117,6 +120,8 @@ mod tests {
 
         let bitmap_font = BitmapFont::from_str(json)?;
         assert_eq!(bitmap_font.font_atlas_path, "font_atlas");
+        assert_eq!(bitmap_font.line_height, 32);
+        assert_eq!(bitmap_font.line_spacing, 4);
         assert_eq!(bitmap_font.letter_spacing, 2);
         assert_eq!(bitmap_font.glyphs.len(), 2);
         assert!(bitmap_font.glyphs.contains_key(&'A'));
