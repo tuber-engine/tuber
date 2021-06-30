@@ -215,7 +215,12 @@ impl Graphics {
         Ok(())
     }
 
-    fn prepare_tilemap(&mut self, tilemap: &Tilemap, tilemap_render: &TilemapRender) {
+    fn prepare_tilemap(
+        &mut self,
+        tilemap: &Tilemap,
+        tilemap_render: &TilemapRender,
+        transform: &Transform2D,
+    ) {
         if !self
             .texture_atlases
             .contains_key(&tilemap_render.texture_atlas_identifier)
@@ -230,6 +235,7 @@ impl Graphics {
             self.texture_atlases
                 .get(&tilemap_render.texture_atlas_identifier)
                 .unwrap(),
+            transform,
         );
     }
 
@@ -335,8 +341,10 @@ pub fn render(ecs: &mut Ecs) {
         .graphics_impl
         .update_camera(camera_id, &camera, &camera_transform);
 
-    for (_, (tilemap, tilemap_render)) in ecs.query::<(R<Tilemap>, R<TilemapRender>)>() {
-        graphics.prepare_tilemap(&tilemap, &tilemap_render);
+    for (_, (tilemap, tilemap_render, transform)) in
+        ecs.query::<(R<Tilemap>, R<TilemapRender>, R<Transform2D>)>()
+    {
+        graphics.prepare_tilemap(&tilemap, &tilemap_render, &transform);
     }
 
     for (_, (rectangle_shape, transform)) in ecs.query::<(R<RectangleShape>, R<Transform2D>)>() {

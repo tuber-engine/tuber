@@ -19,6 +19,7 @@ pub trait LowLevelGraphicsAPI {
         tilemap: &Tilemap,
         tilemap_render: &TilemapRender,
         texture_atlas: &TextureAtlas,
+        transform: &Transform2D,
     );
     fn is_texture_in_memory(&self, texture_identifier: &str) -> bool;
     /// Loads a texture in memory

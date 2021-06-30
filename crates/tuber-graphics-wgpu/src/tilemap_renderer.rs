@@ -1,6 +1,6 @@
 use crate::texture::Texture;
 use crate::Vertex;
-use nalgebra::Matrix4;
+use nalgebra::{Matrix4, Point3, Point4};
 use std::collections::HashMap;
 use tuber_common::tilemap::Tilemap;
 use tuber_common::transform::{IntoMatrix4, Transform2D};
@@ -135,6 +135,7 @@ impl TilemapRenderer {
         tilemap: &Tilemap,
         tilemap_render: &TilemapRender,
         texture_atlas: &TextureAtlas,
+        transform: &Transform2D,
         textures: &HashMap<String, Texture>,
     ) {
         if !tilemap_render.dirty {
@@ -155,9 +156,13 @@ impl TilemapRenderer {
 
         for j in 0..tilemap.height {
             for i in 0..tilemap.width {
-                let texture_region_identifier =
+                let texture_region_identifier = if let Some(texture_region_identifier) =
                     (tilemap_render.tile_texture_function)(&tilemap.tiles[i + j * tilemap.width])
-                        .unwrap();
+                {
+                    texture_region_identifier
+                } else {
+                    continue;
+                };
                 let texture_region = texture_atlas
                     .texture_region(texture_region_identifier)
                     .unwrap();
@@ -168,25 +173,35 @@ impl TilemapRenderer {
                     height: texture_region.height / texture_height,
                 };
 
+                let transform_matrix = transform.into_matrix4();
+
                 queue.write_buffer(
                     &buffer,
                     ((i + j * tilemap.width) * 6 * std::mem::size_of::<Vertex>()) as u64,
                     bytemuck::cast_slice(&[
                         Vertex {
-                            position: [
-                                (i * tilemap.tile_width) as f32,
-                                (j * tilemap.tile_height) as f32,
-                                0.0,
-                            ],
+                            position: (transform_matrix
+                                * Point4::new(
+                                    (i * tilemap.tile_width) as f32,
+                                    (j * tilemap.tile_height) as f32,
+                                    0.0,
+                                    1.0,
+                                ))
+                            .xyz()
+                            .into(),
                             color: [1.0, 1.0, 1.0],
                             tex_coords: [texture_region.x, texture_region.y],
                         },
                         Vertex {
-                            position: [
-                                (i * tilemap.tile_width) as f32,
-                                (j * tilemap.tile_height + tilemap.tile_height) as f32,
-                                0.0,
-                            ],
+                            position: (transform_matrix
+                                * Point4::new(
+                                    (i * tilemap.tile_width) as f32,
+                                    (j * tilemap.tile_height + tilemap.tile_height) as f32,
+                                    0.0,
+                                    1.0,
+                                ))
+                            .xyz()
+                            .into(),
                             color: [1.0, 1.0, 1.0],
                             tex_coords: [
                                 texture_region.x,
@@ -194,29 +209,41 @@ impl TilemapRenderer {
                             ],
                         },
                         Vertex {
-                            position: [
-                                (i * tilemap.tile_width + tilemap.tile_width) as f32,
-                                (j * tilemap.tile_height) as f32,
-                                0.0,
-                            ],
+                            position: (transform_matrix
+                                * Point4::new(
+                                    (i * tilemap.tile_width + tilemap.tile_width) as f32,
+                                    (j * tilemap.tile_height) as f32,
+                                    0.0,
+                                    1.0,
+                                ))
+                            .xyz()
+                            .into(),
                             color: [1.0, 1.0, 1.0],
                             tex_coords: [texture_region.x + texture_region.width, texture_region.y],
                         },
                         Vertex {
-                            position: [
-                                (i * tilemap.tile_width + tilemap.tile_width) as f32,
-                                (j * tilemap.tile_height) as f32,
-                                0.0,
-                            ],
+                            position: (transform_matrix
+                                * Point4::new(
+                                    (i * tilemap.tile_width + tilemap.tile_width) as f32,
+                                    (j * tilemap.tile_height) as f32,
+                                    0.0,
+                                    1.0,
+                                ))
+                            .xyz()
+                            .into(),
                             color: [1.0, 1.0, 1.0],
                             tex_coords: [texture_region.x + texture_region.width, texture_region.y],
                         },
                         Vertex {
-                            position: [
-                                (i * tilemap.tile_width) as f32,
-                                (j * tilemap.tile_height + tilemap.tile_height) as f32,
-                                0.0,
-                            ],
+                            position: (transform_matrix
+                                * Point4::new(
+                                    (i * tilemap.tile_width) as f32,
+                                    (j * tilemap.tile_height + tilemap.tile_height) as f32,
+                                    0.0,
+                                    1.0,
+                                ))
+                            .xyz()
+                            .into(),
                             color: [1.0, 1.0, 1.0],
                             tex_coords: [
                                 texture_region.x,
@@ -224,11 +251,15 @@ impl TilemapRenderer {
                             ],
                         },
                         Vertex {
-                            position: [
-                                (i * tilemap.tile_width + tilemap.tile_width) as f32,
-                                (j * tilemap.tile_height + tilemap.tile_height) as f32,
-                                0.0,
-                            ],
+                            position: (transform_matrix
+                                * Point4::new(
+                                    (i * tilemap.tile_width + tilemap.tile_width) as f32,
+                                    (j * tilemap.tile_height + tilemap.tile_height) as f32,
+                                    0.0,
+                                    1.0,
+                                ))
+                            .xyz()
+                            .into(),
                             color: [1.0, 1.0, 1.0],
                             tex_coords: [
                                 texture_region.x + texture_region.width,

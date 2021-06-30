@@ -173,6 +173,7 @@ impl LowLevelGraphicsAPI for GraphicsWGPU {
         tilemap: &Tilemap,
         tilemap_render: &TilemapRender,
         texture_atlas: &TextureAtlas,
+        transform: &Transform2D,
     ) {
         let state = self.wgpu_state.as_mut().expect("Graphics is uninitialized");
         state.tilemap_renderer.prepare(
@@ -181,6 +182,7 @@ impl LowLevelGraphicsAPI for GraphicsWGPU {
             tilemap,
             tilemap_render,
             texture_atlas,
+            transform,
             &self.textures,
         );
     }
