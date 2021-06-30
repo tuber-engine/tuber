@@ -14,7 +14,7 @@ impl Tilemap {
         height: usize,
         tile_width: usize,
         tile_height: usize,
-        default_tags: &[&str],
+        default_tags: &[String],
     ) -> Self {
         Self {
             width,
@@ -32,7 +32,7 @@ pub struct Tile {
 }
 
 impl Tile {
-    pub fn with_tags(tags: &[&str]) -> Self {
+    pub fn with_tags(tags: &[String]) -> Self {
         Self {
             tags: tags.iter().cloned().map(|s| s.to_owned()).collect(),
         }
