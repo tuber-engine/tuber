@@ -43,23 +43,17 @@ pub struct CollisionData {
 
 fn overlap(p1: (f32, f32), p2: (f32, f32)) -> f32 {
     if p1.1 < p2.1 {
-        if p1.0 < p2.0 && p1.1 > p2.0 {
-            p1.1 - p2.0
-        } else if p1.0 > p2.0 {
+        if p1.0 > p2.0 {
             p1.1 - p1.0
         } else {
-            0.0
-        }
-    } else if p1.1 > p2.1 {
-        if p1.0 > p2.0 && p1.0 < p2.1 {
-            p1.0 - p2.1
-        } else if p1.0 < p2.0 {
-            p2.1 - p2.0
-        } else {
-            0.0
+            p1.1 - p2.0
         }
     } else {
-        0.0
+        if p1.0 < p2.0 {
+            p2.1 - p2.0
+        } else {
+            p1.0 - p2.1
+        }
     }
 }
 

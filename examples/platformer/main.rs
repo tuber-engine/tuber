@@ -68,7 +68,7 @@ fn main() -> tuber::Result<()> {
             color: (0.0, 1.0, 0.0),
         },
         Transform2D {
-            translation: (350.0, 499.0),
+            translation: (350.0, 500.0),
             ..Default::default()
         },
         StaticBody2D,
