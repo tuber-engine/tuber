@@ -35,7 +35,7 @@ fn main() -> tuber::Result<()> {
 
     use rand::Rng;
     let mut rng = rand::thread_rng();
-    let mut tilemap = Tilemap::new(100, 100, 16, 16, &["dirt"]);
+    let mut tilemap = Tilemap::new(100, 100, 16, 16, &["dirt".into()]);
     for tile in &mut tilemap.tiles {
         let tile_tag = rng.gen_range(0..=2);
         let mut tags = HashSet::new();

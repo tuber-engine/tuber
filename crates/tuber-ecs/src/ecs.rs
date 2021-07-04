@@ -139,10 +139,10 @@ impl Ecs {
             index?
         };
 
-        Some(Q::fetch(index, &self.components))
+        Some(Q::fetch(index, &self.components)?)
     }
 
-    pub fn query_one_by_id<'a, Q: Query<'a>>(&'a self, id: EntityIndex) -> Q::ResultType {
+    pub fn query_one_by_id<'a, Q: Query<'a>>(&'a self, id: EntityIndex) -> Option<Q::ResultType> {
         Q::fetch(id, &self.components)
     }
 

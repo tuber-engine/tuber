@@ -9,7 +9,7 @@ use std::marker::PhantomData;
 pub trait Query<'a> {
     type ResultType: 'a;
 
-    fn fetch(index: EntityIndex, components: &'a Components) -> Self::ResultType;
+    fn fetch(index: EntityIndex, components: &'a Components) -> Option<Self::ResultType>;
     fn matching_ids(entity_count: usize, components: &'a Components) -> HashSet<EntityIndex>;
     fn type_ids() -> Vec<TypeId>;
 }
@@ -23,8 +23,8 @@ macro_rules! impl_query_tuples {
         {
             type ResultType = (EntityIndex, ($th::RefType, $($t::RefType,)*));
 
-            fn fetch(index: EntityIndex, components: &'a Components) -> Self::ResultType {
-                (index, ($th::fetch(index, components), $($t::fetch(index, components),)*))
+            fn fetch(index: EntityIndex, components: &'a Components) -> Option<Self::ResultType> {
+                Some((index, ($th::fetch(index, components)?, $($t::fetch(index, components)?,)*)))
             }
 
             #[allow(unused_mut)]
@@ -130,7 +130,7 @@ where
         } else {
             return None;
         };
-        Some(Q::fetch(self.index, self.components))
+        Some(Q::fetch(self.index, self.components)?)
     }
 }
 
@@ -150,7 +150,7 @@ pub mod accessors {
         type RawType: 'a;
         type RefType: 'a;
 
-        fn fetch(index: usize, components: &'a Components) -> Self::RefType;
+        fn fetch(index: usize, components: &'a Components) -> Option<Self::RefType>;
         fn matching_ids(entity_count: usize, components: &'a Components) -> HashSet<EntityIndex>;
         fn type_id() -> TypeId;
     }
@@ -158,14 +158,13 @@ pub mod accessors {
         type RawType = T;
         type RefType = Ref<'a, T>;
 
-        fn fetch(index: usize, components: &'a Components) -> Self::RefType {
-            Ref::map(
+        fn fetch(index: usize, components: &'a Components) -> Option<Self::RefType> {
+            Some(Ref::map(
                 components[&TypeId::of::<T>()].component_data[index]
-                    .as_ref()
-                    .unwrap()
+                    .as_ref()?
                     .borrow(),
                 |r| r.downcast_ref().unwrap(),
-            )
+            ))
         }
 
         fn matching_ids(entity_count: usize, components: &'a Components) -> HashSet<EntityIndex> {
@@ -189,14 +188,13 @@ pub mod accessors {
         type RawType = T;
         type RefType = RefMut<'a, T>;
 
-        fn fetch(index: usize, components: &'a Components) -> Self::RefType {
-            RefMut::map(
+        fn fetch(index: usize, components: &'a Components) -> Option<Self::RefType> {
+            Some(RefMut::map(
                 components[&TypeId::of::<T>()].component_data[index]
-                    .as_ref()
-                    .unwrap()
+                    .as_ref()?
                     .borrow_mut(),
                 |r| r.downcast_mut().unwrap(),
-            )
+            ))
         }
 
         fn matching_ids(entity_count: usize, components: &'a Components) -> HashSet<EntityIndex> {

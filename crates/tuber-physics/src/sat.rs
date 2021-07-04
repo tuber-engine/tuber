@@ -17,40 +17,50 @@ pub fn are_colliding(
             return None;
         } else {
             let o = overlap(projected_first_shape, projected_second_shape);
-            if o < shapes_overlap {
-                shapes_overlap = o;
-                smallest_axis = Some(axis.clone());
+            if o.abs() < shapes_overlap {
+                shapes_overlap = o.abs();
+
+                let axis = Vector2::new(
+                    if o < 0.0 { -axis.x } else { axis.x },
+                    if o < 0.0 { axis.y } else { -axis.y },
+                );
+                smallest_axis = Some(axis);
             }
         }
     }
 
-    Some(CollisionData::new(smallest_axis.unwrap(), shapes_overlap))
+    Some(CollisionData {
+        overlap: shapes_overlap,
+        smallest_axis: smallest_axis.unwrap(),
+    })
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CollisionData {
-    minimum_translation_vector: Vector2,
-}
-
-impl CollisionData {
-    pub fn new(smallest_axis: Vector2, magnitude: f32) -> Self {
-        let initial_magnitude =
-            (smallest_axis.x * smallest_axis.x + smallest_axis.y * smallest_axis.y).sqrt();
-        Self {
-            minimum_translation_vector: Vector2::new(
-                smallest_axis.x * (magnitude / initial_magnitude),
-                smallest_axis.y * (magnitude / initial_magnitude),
-            ),
-        }
-    }
-
-    pub fn minimum_translation_vector(&self) -> &Vector2 {
-        &self.minimum_translation_vector
-    }
+    pub overlap: f32,
+    pub smallest_axis: Vector2,
 }
 
 fn overlap(p1: (f32, f32), p2: (f32, f32)) -> f32 {
-    p1.1.min(p2.1) - p1.0.max(p2.0)
+    if p1.1 < p2.1 {
+        if p1.0 < p2.0 && p1.1 > p2.0 {
+            p1.1 - p2.0
+        } else if p1.0 > p2.0 {
+            p1.1 - p1.0
+        } else {
+            0.0
+        }
+    } else if p1.1 > p2.1 {
+        if p1.0 > p2.0 && p1.0 < p2.1 {
+            p1.0 - p2.1
+        } else if p1.0 < p2.0 {
+            p2.1 - p2.0
+        } else {
+            0.0
+        }
+    } else {
+        0.0
+    }
 }
 
 fn projections_overlap(p1: (f32, f32), p2: (f32, f32)) -> bool {

@@ -59,7 +59,9 @@ fn main() -> Result<()> {
         Active,
     ));
 
-    engine.ecs().insert_shared_resource(PivotList(VecDeque::new()));
+    engine
+        .ecs()
+        .insert_shared_resource(PivotList(VecDeque::new()));
     engine.ecs().insert_shared_resource(Score(0));
 
     spawn_snake(engine.ecs());
@@ -327,8 +329,9 @@ fn eat_apple_system(ecs: &mut Ecs) {
 
         {
             {
-                let (_, (mut old_tail_body_part, mut sprite)) =
-                    ecs.query_one_by_id::<(W<SnakeBodyPart>, W<Sprite>)>(old_tail_id);
+                let (_, (mut old_tail_body_part, mut sprite)) = ecs
+                    .query_one_by_id::<(W<SnakeBodyPart>, W<Sprite>)>(old_tail_id)
+                    .unwrap();
                 old_tail_body_part.next_body_part = Some(new_tail_id);
                 sprite.texture = "examples/snake/snake_body.png".into();
             }

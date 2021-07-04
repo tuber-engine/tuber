@@ -27,7 +27,9 @@ impl Physics {
         transform: &mut Transform2D,
         rigid_body: &mut RigidBody2D,
     ) {
-        rigid_body.acceleration += self.gravity;
+        if !rigid_body.grounded {
+            rigid_body.acceleration += self.gravity;
+        }
         rigid_body.velocity = rigid_body.velocity + rigid_body.acceleration * delta_time as f32;
         transform.translation.0 += rigid_body.velocity.x;
         transform.translation.1 += rigid_body.velocity.y;
@@ -44,45 +46,87 @@ pub fn physics_update_system(ecs: &mut Ecs) {
     let DeltaTime(delta_time) = *ecs
         .shared_resource::<DeltaTime>()
         .expect("DeltaTime resource not found");
-    let mut physics = ecs.shared_resource_mut::<Physics>().expect("No Physics resource");
+    let mut physics = ecs
+        .shared_resource_mut::<Physics>()
+        .expect("No Physics resource");
 
     for (_, (mut transform, mut rigid_body)) in ecs.query::<(W<Transform2D>, W<RigidBody2D>)>() {
         physics.update_rigid_body_2d(delta_time, &mut transform, &mut rigid_body);
     }
 
-    let mut colliding = HashSet::new();
-    let mut collisions = HashMap::new();
-    for (first, (transform, collision_box)) in ecs.query::<(R<Transform2D>, R<CollisionShape>)>() {
-        for (second, (second_transform, second_collision_box)) in
-            ecs.query::<(R<Transform2D>, R<CollisionShape>)>()
+    let mut displacements = HashMap::new();
+    let mut collided = HashSet::new();
+
+    for (first, (transform, collision_shapes)) in
+        ecs.query::<(R<Transform2D>, R<CollisionShapes>)>()
+    {
+        for (second, (second_transform, second_collision_shapes)) in
+            ecs.query::<(R<Transform2D>, R<CollisionShapes>)>()
         {
             if first == second {
                 continue;
             }
 
-            let transformed_collision_box = collision_box.transform(&transform);
-            let transformed_second_collision_box =
-                second_collision_box.transform(&second_transform);
+            for collision_shape in &collision_shapes.shapes {
+                for second_collision_shape in &second_collision_shapes.shapes {
+                    let transformed_collision_box = collision_shape.transform(&transform);
+                    let transformed_second_collision_box =
+                        second_collision_shape.transform(&second_transform);
 
-            if let Some(collision_data) = sat::are_colliding(
-                &transformed_collision_box,
-                &transformed_second_collision_box,
-            ) {
-                collisions.insert(first, collision_data.clone());
-                colliding.insert(first);
-                collisions.insert(second, collision_data.clone());
-                colliding.insert(second);
+                    if let Some(collision_data) = sat::are_colliding(
+                        &transformed_collision_box,
+                        &transformed_second_collision_box,
+                    ) {
+                        let displacement = Vector2::new(
+                            -collision_data.smallest_axis.x,
+                            collision_data.smallest_axis.y,
+                        );
+
+                        let s = (displacement.x * displacement.x + displacement.y * displacement.y)
+                            .sqrt();
+
+                        let displacement = (
+                            displacement.x * collision_data.overlap / s,
+                            displacement.y * collision_data.overlap / s,
+                        );
+
+                        displacements.insert(first, displacement);
+                        collided.insert(first);
+                    }
+                }
             }
         }
     }
-    for (id, (mut rigid_body, mut transform)) in
-        ecs.query_by_ids::<(W<RigidBody2D>, W<Transform2D>)>(&colliding)
-    {
-        let collision_data = collisions.get(&id).unwrap();
-        transform.translation.0 += collision_data.minimum_translation_vector().x;
-        transform.translation.1 += collision_data.minimum_translation_vector().y;
-        rigid_body.velocity.y = 0.0;
-        rigid_body.acceleration.y = 0.0;
+
+    for (id, (mut rigid_body,)) in ecs.query::<(W<RigidBody2D>,)>() {
+        if !collided.contains(&id) {
+            rigid_body.grounded = false;
+        }
+    }
+
+    for id in collided {
+        let displacement = displacements[&id];
+        if let Some((_, (mut transform, mut body))) =
+            ecs.query_one_by_id::<(W<Transform2D>, W<RigidBody2D>)>(id)
+        {
+            transform.translation.0 += displacement.0;
+            transform.translation.1 += displacement.1;
+
+            if displacement.1 < 0.0 {
+                body.grounded = true;
+                body.velocity.y = 0.0;
+                body.acceleration.y = 0.0;
+            }
+            if displacement.1 > 0.0 {
+                body.velocity.y = 0.0;
+                body.acceleration.y = 0.0;
+            }
+
+            if (displacement.0 < 0.0) || (displacement.0 > 0.0) {
+                body.velocity.x = 0.0;
+                body.acceleration.x = 0.0;
+            }
+        }
     }
 }
 
@@ -90,6 +134,7 @@ pub fn physics_update_system(ecs: &mut Ecs) {
 pub struct RigidBody2D {
     pub velocity: Vector2,
     pub acceleration: Vector2,
+    pub grounded: bool,
 }
 
 impl Default for RigidBody2D {
@@ -97,6 +142,7 @@ impl Default for RigidBody2D {
         Self {
             velocity: Vector2::new(0.0, 0.0),
             acceleration: Vector2::new(0.0, 0.0),
+            grounded: false,
         }
     }
 }
@@ -161,6 +207,11 @@ impl Polygon {
             },
         )
     }
+}
+
+#[derive(Debug)]
+pub struct CollisionShapes {
+    pub shapes: Vec<CollisionShape>,
 }
 
 #[derive(Debug)]

@@ -6,6 +6,7 @@ use tuber::graphics::shape::RectangleShape;
 use tuber::graphics::Graphics;
 use tuber::graphics_wgpu::GraphicsWGPU;
 use tuber::keyboard::Key;
+use tuber::physics::CollisionShapes;
 use tuber::*;
 use tuber_common::transform::Transform2D;
 use tuber_physics::{CollisionShape, Physics, RigidBody2D, StaticBody2D};
@@ -40,7 +41,9 @@ fn main() -> tuber::Result<()> {
             ..Default::default()
         },
         RigidBody2D::default(),
-        CollisionShape::from_rectangle(0.0, 0.0, 50.0, 100.0),
+        CollisionShapes {
+            shapes: vec![CollisionShape::from_rectangle(0.0, 0.0, 50.0, 100.0)],
+        },
     ));
 
     engine.ecs().insert((
@@ -54,7 +57,24 @@ fn main() -> tuber::Result<()> {
             ..Default::default()
         },
         StaticBody2D,
-        CollisionShape::from_rectangle(0.0, 0.0, 800.0, 50.0),
+        CollisionShapes {
+            shapes: vec![CollisionShape::from_rectangle(0.0, 0.0, 800.0, 50.0)],
+        },
+    ));
+    engine.ecs().insert((
+        RectangleShape {
+            width: 100.0,
+            height: 50.0,
+            color: (0.0, 1.0, 0.0),
+        },
+        Transform2D {
+            translation: (350.0, 499.0),
+            ..Default::default()
+        },
+        StaticBody2D,
+        CollisionShapes {
+            shapes: vec![CollisionShape::from_rectangle(0.0, 0.0, 100.0, 50.0)],
+        },
     ));
 
     engine.ecs().insert((
@@ -64,17 +84,21 @@ fn main() -> tuber::Result<()> {
             color: (0.0, 1.0, 0.0),
         },
         Transform2D {
-            translation: (200.0, 300.0),
+            translation: (200.0, 200.0),
             angle: 15.0,
             ..Default::default()
         },
         StaticBody2D,
-        CollisionShape::from_rectangle(0.0, 0.0, 300.0, 50.0),
+        CollisionShapes {
+            shapes: vec![CollisionShape::from_rectangle(0.0, 0.0, 300.0, 50.0)],
+        },
     ));
 
     let mut runner = WinitTuberRunner;
     let graphics = Graphics::new(Box::new(GraphicsWGPU::new()));
-    engine.ecs().insert_shared_resource(Physics::new((0.0, 1.0)));
+    engine
+        .ecs()
+        .insert_shared_resource(Physics::new((0.0, 1.0)));
 
     engine.add_system_bundle(Physics::default_system_bundle());
     engine.add_system_bundle(Graphics::default_system_bundle());
@@ -137,7 +161,6 @@ fn jump_system(ecs: &mut Ecs) {
     let input = ecs.shared_resource::<InputState>().unwrap();
     let (_, (mut rigid_body,)) = ecs.query_one::<(W<RigidBody2D>,)>().unwrap();
     if input.is(Input::KeyDown(Key::Z)) {
-        println!("{}", rigid_body.velocity.y.abs());
         if rigid_body.velocity.y.abs() == 0.0 {
             rigid_body.acceleration.y = -40.0;
         }

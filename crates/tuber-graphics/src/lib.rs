@@ -85,16 +85,6 @@ impl Graphics {
         );
     }
 
-    fn get_or_load_texture_atlas(
-        &mut self,
-        texture_atlas_path: &str,
-    ) -> Result<&TextureAtlas, GraphicsError> {
-        if !self.texture_atlases.contains_key(texture_atlas_path) {
-            self.load_texture_atlas(texture_atlas_path);
-        }
-        Ok(&self.texture_atlases[texture_atlas_path])
-    }
-
     fn load_texture_atlas(&mut self, texture_atlas_path: &str) -> Result<(), GraphicsError> {
         let atlas_description_file = File::open(texture_atlas_path)
             .map_err(|e| GraphicsError::AtlasDescriptionFileOpenError(e))?;
@@ -239,13 +229,13 @@ impl Graphics {
         );
     }
 
-    fn prepare_text(&mut self, text: &Text, transform: &Transform2D) {
+    pub fn prepare_text(&mut self, text: &Text, transform: &Transform2D) {
         if !self.fonts.contains_key(text.font()) {
             self.load_font(text.font()).expect("Font not found");
         }
         let font_atlas_path = self.fonts[text.font()].font_atlas_path().to_owned();
         if !self.texture_atlases.contains_key(&font_atlas_path) {
-            self.load_texture_atlas(&font_atlas_path);
+            self.load_texture_atlas(&font_atlas_path).unwrap();
         }
 
         let font = &self.fonts[text.font()];
