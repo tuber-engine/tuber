@@ -40,6 +40,7 @@ impl TextureData {
     }
 }
 
+#[derive(Clone)]
 pub enum TextureSource {
     WholeTexture(String),
     TextureRegion(String, TextureRegion),

@@ -1,0 +1,11 @@
+{
+    "texture_identifier": "examples/ui/font_atlas.png",
+    "textures": {
+        "examples/ui/font.json": {
+            "x": 0,
+            "y": 0,
+            "width": 112,
+            "height": 64
+        }
+    }
+}

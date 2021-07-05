@@ -10,12 +10,14 @@ layout(location=5) in vec4 model_matrix_2;
 layout(location=6) in vec4 model_matrix_3;
 layout(location=7) in vec3 color;
 layout(location=8) in vec2 size;
+layout(location=10) in int apply_view_transform;
 
 layout(location=0) out vec3 v_color;
 
 layout(set=0, binding=0)
 uniform Uniforms {
-    mat4 u_view_proj;
+    mat4 u_proj;
+    mat4 u_view;
 };
 
 void main() {
@@ -27,5 +29,11 @@ void main() {
     );
 
     v_color = color;
-    gl_Position = u_view_proj * model_matrix * vec4(a_position.x * size.x, a_position.y * size.y, 0.0, 1.0);
+    mat4 view_proj;
+    if (apply_view_transform != 0) {
+        view_proj = u_proj * u_view;
+    } else {
+        view_proj = u_proj;
+    }
+    gl_Position = view_proj * model_matrix * vec4(a_position.x * size.x, a_position.y * size.y, 0.0, 1.0);
 }

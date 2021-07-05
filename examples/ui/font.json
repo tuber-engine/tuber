@@ -1,0 +1,231 @@
+{
+  "font_atlas_path": "examples/ui/font_atlas.json",
+  "font_atlas_region": {
+    "x": 0.0,
+    "y": 0.0,
+    "width": 112.0,
+    "height": 64.0
+  },
+  "ignore_case": true,
+  "line_height": 12,
+  "line_spacing": 2,
+  "letter_spacing": 2,
+  "glyphs": {
+    "A": {
+      "region": {
+        "x": 1,
+        "y": 1,
+        "width": 10,
+        "height": 12
+      }
+    },
+    "B": {
+      "region": {
+        "x": 12,
+        "y": 1,
+        "width": 8,
+        "height": 12
+      }
+    },
+    "C": {
+      "region": {
+        "x": 21,
+        "y": 1,
+        "width": 8,
+        "height": 12
+      }
+    },
+    "D": {
+      "region": {
+        "x": 30,
+        "y": 1,
+        "width": 8,
+        "height": 12
+      }
+    },
+    "E": {
+      "region": {
+        "x": 39,
+        "y": 1,
+        "width": 8,
+        "height": 12
+      }
+    },
+    "F": {
+      "region": {
+        "x": 48,
+        "y": 1,
+        "width": 8,
+        "height": 12
+      }
+    },
+    "G": {
+      "region": {
+        "x": 57,
+        "y": 1,
+        "width": 9,
+        "height": 12
+      }
+    },
+    "H": {
+      "region": {
+        "x": 66,
+        "y": 1,
+        "width": 11,
+        "height": 12
+      }
+    },
+    "I": {
+      "region": {
+        "x": 77,
+        "y": 1,
+        "width": 3,
+        "height": 12
+      }
+    },
+    "J": {
+      "region": {
+        "x": 80,
+        "y": 1,
+        "width": 8,
+        "height": 12
+      }
+    },
+    "K": {
+      "region": {
+        "x": 88,
+        "y": 1,
+        "width": 8,
+        "height": 12
+      }
+    },
+    "L": {
+      "region": {
+        "x": 97,
+        "y": 1,
+        "width": 8,
+        "height": 12
+      }
+    },
+    "M": {
+      "region": {
+        "x": 1,
+        "y": 14,
+        "width": 8,
+        "height": 12
+      }
+    },
+    "N": {
+      "region": {
+        "x": 10,
+        "y": 14,
+        "width": 8,
+        "height": 12
+      }
+    },
+    "O": {
+      "region": {
+        "x": 19,
+        "y": 14,
+        "width": 8,
+        "height": 12
+      }
+    },
+    "P": {
+      "region": {
+        "x": 28,
+        "y": 14,
+        "width": 8,
+        "height": 12
+      }
+    },
+    "Q": {
+      "region": {
+        "x": 37,
+        "y": 14,
+        "width": 9,
+        "height": 12
+      }
+    },
+    "R": {
+      "region": {
+        "x": 47,
+        "y": 14,
+        "width": 8,
+        "height": 12
+      }
+    },
+    "S": {
+      "region": {
+        "x": 56,
+        "y": 14,
+        "width": 8,
+        "height": 12
+      }
+    },
+    "T": {
+      "region": {
+        "x": 65,
+        "y": 14,
+        "width": 8,
+        "height": 12
+      }
+    },
+    "U": {
+      "region": {
+        "x": 74,
+        "y": 14,
+        "width": 7,
+        "height": 12
+      }
+    },
+    "V": {
+      "region": {
+        "x": 82,
+        "y": 14,
+        "width": 9,
+        "height": 11
+      }
+    },
+    "W": {
+      "region": {
+        "x": 92,
+        "y": 14,
+        "width": 10,
+        "height": 12
+      }
+    },
+    "X": {
+      "region": {
+        "x": 1,
+        "y": 27,
+        "width": 12,
+        "height": 11
+      }
+    },
+    "Y": {
+      "region": {
+        "x": 14,
+        "y": 27,
+        "width": 12,
+        "height": 11
+      }
+    },
+    "Z": {
+      "region": {
+        "x": 27,
+        "y": 27,
+        "width": 10,
+        "height": 12
+      }
+    },
+    " ": {
+      "region": {
+        "x": 38,
+        "y": 37,
+        "width": 12,
+        "height": 2
+      }
+    }
+  }
+}

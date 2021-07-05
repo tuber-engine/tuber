@@ -12,6 +12,7 @@ pub trait LowLevelGraphicsAPI {
         &mut self,
         quad_description: &QuadDescription,
         transform: &Transform2D,
+        apply_view_transform: bool,
         bounding_box_rendering: bool,
     );
     fn prepare_tilemap(

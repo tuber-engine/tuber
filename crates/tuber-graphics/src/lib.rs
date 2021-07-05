@@ -5,7 +5,7 @@ use crate::shape::RectangleShape;
 use crate::sprite::{sprite_animation_step_system, AnimatedSprite, Sprite};
 use crate::texture::{TextureAtlas, TextureData, TextureMetadata, TextureRegion, TextureSource};
 use crate::tilemap::TilemapRender;
-use crate::ui::Text;
+use crate::ui::{Frame, Image, NoViewTransform, Text};
 use image::ImageError;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use std::collections::HashMap;
@@ -72,7 +72,12 @@ impl Graphics {
         self.graphics_impl.render();
     }
 
-    fn prepare_rectangle(&mut self, rectangle: &RectangleShape, transform: &Transform2D) {
+    pub fn prepare_rectangle(
+        &mut self,
+        rectangle: &RectangleShape,
+        transform: &Transform2D,
+        apply_view_transform: bool,
+    ) {
         self.graphics_impl.prepare_quad(
             &QuadDescription {
                 width: rectangle.width,
@@ -81,6 +86,7 @@ impl Graphics {
                 texture: None,
             },
             transform,
+            apply_view_transform,
             self.bounding_box_rendering,
         );
     }
@@ -121,6 +127,7 @@ impl Graphics {
         &mut self,
         animated_sprite: &AnimatedSprite,
         transform: &Transform2D,
+        apply_view_transform: bool,
     ) -> Result<(), GraphicsError> {
         if let TextureSource::TextureAtlas(texture_atlas_identifier, _) = &animated_sprite.texture {
             if !self.texture_atlases.contains_key(texture_atlas_identifier) {
@@ -159,16 +166,18 @@ impl Graphics {
                 }),
             },
             transform,
+            apply_view_transform,
             self.bounding_box_rendering,
         );
 
         Ok(())
     }
 
-    fn prepare_sprite(
+    pub fn prepare_sprite(
         &mut self,
         sprite: &Sprite,
         transform: &Transform2D,
+        apply_view_transform: bool,
     ) -> Result<(), GraphicsError> {
         if let TextureSource::TextureAtlas(texture_atlas_identifier, _) = &sprite.texture {
             if !self.texture_atlases.contains_key(texture_atlas_identifier) {
@@ -200,6 +209,7 @@ impl Graphics {
                 }),
             },
             transform,
+            apply_view_transform,
             self.bounding_box_rendering,
         );
         Ok(())
@@ -229,27 +239,33 @@ impl Graphics {
         );
     }
 
-    pub fn prepare_text(&mut self, text: &Text, transform: &Transform2D) {
-        if !self.fonts.contains_key(text.font()) {
-            self.load_font(text.font()).expect("Font not found");
+    pub fn prepare_text(
+        &mut self,
+        text: &str,
+        font_path: &str,
+        transform: &Transform2D,
+        apply_view_transform: bool,
+    ) {
+        if !self.fonts.contains_key(font_path) {
+            self.load_font(font_path).expect("Font not found");
         }
-        let font_atlas_path = self.fonts[text.font()].font_atlas_path().to_owned();
+        let font_atlas_path = self.fonts[font_path].font_atlas_path().to_owned();
         if !self.texture_atlases.contains_key(&font_atlas_path) {
             self.load_texture_atlas(&font_atlas_path).unwrap();
         }
 
-        let font = &self.fonts[text.font()];
+        let font = &self.fonts[font_path];
         let texture_atlas = &self.texture_atlases[font.font_atlas_path()];
 
         let texture_identifier = texture_atlas.texture_identifier();
         let texture = &self.texture_metadata[texture_identifier];
         let font_region = texture_atlas
-            .texture_region(text.font())
+            .texture_region(font_path)
             .expect("Font region not found");
 
         let mut offset_x = transform.translation.0;
         let mut offset_y = transform.translation.1;
-        for character in text.text().chars() {
+        for character in text.chars() {
             if character == '\n' {
                 offset_y += (font.line_height() + font.line_spacing()) as f32;
                 offset_x = transform.translation.0;
@@ -289,6 +305,7 @@ impl Graphics {
                     }),
                 },
                 &glyph_transform,
+                apply_view_transform,
                 false,
             );
 
@@ -338,23 +355,49 @@ pub fn render(ecs: &mut Ecs) {
     }
 
     for (_, (rectangle_shape, transform)) in ecs.query::<(R<RectangleShape>, R<Transform2D>)>() {
-        graphics.prepare_rectangle(&rectangle_shape, &transform);
+        graphics.prepare_rectangle(&rectangle_shape, &transform, true);
     }
     for (_, (sprite, transform)) in ecs.query::<(R<Sprite>, R<Transform2D>)>() {
-        graphics.prepare_sprite(&sprite, &transform).unwrap();
+        graphics.prepare_sprite(&sprite, &transform, true).unwrap();
     }
     for (_, (animated_sprite, transform)) in ecs.query::<(R<AnimatedSprite>, R<Transform2D>)>() {
         graphics
-            .prepare_animated_sprite(&animated_sprite, &transform)
+            .prepare_animated_sprite(&animated_sprite, &transform, true)
             .unwrap();
-    }
-
-    for (_, (text, transform)) in ecs.query::<(R<Text>, R<Transform2D>)>() {
-        graphics.prepare_text(&text, &transform);
     }
 
     for (_, (mut tilemap_render,)) in ecs.query::<(W<TilemapRender>,)>() {
         tilemap_render.dirty = false;
     }
+
+    for (id, (frame, transform)) in ecs.query::<(R<Frame>, R<Transform2D>)>() {
+        let apply_view_transform = !ecs.query_one_by_id::<(R<NoViewTransform>,)>(id).is_some();
+        graphics.prepare_rectangle(
+            &RectangleShape {
+                width: frame.width,
+                height: frame.height,
+                color: frame.color,
+            },
+            &transform,
+            apply_view_transform,
+        );
+    }
+
+    for (id, (text, transform)) in ecs.query::<(R<Text>, R<Transform2D>)>() {
+        let apply_view_transform = !ecs.query_one_by_id::<(R<NoViewTransform>,)>(id).is_some();
+        graphics.prepare_text(text.text(), text.font(), &transform, apply_view_transform);
+    }
+
+    for (id, (image, transform)) in ecs.query::<(R<Image>, R<Transform2D>)>() {
+        let apply_view_transform = !ecs.query_one_by_id::<(R<NoViewTransform>,)>(id).is_some();
+        let sprite = Sprite {
+            width: image.width,
+            height: image.height,
+            texture: image.texture.clone(),
+        };
+
+        graphics.prepare_sprite(&sprite, &transform, apply_view_transform);
+    }
+
     graphics.render();
 }

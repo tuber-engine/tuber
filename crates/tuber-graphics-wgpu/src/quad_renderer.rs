@@ -1,6 +1,6 @@
 use crate::texture::Texture;
 use crate::Vertex;
-use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
+use nalgebra::{Matrix, Matrix4, Vector2, Vector3, Vector4};
 use num_traits::identities::Zero;
 use std::collections::HashMap;
 use tuber_common::transform::{IntoMatrix4, Transform2D};
@@ -18,7 +18,7 @@ const VERTEX_COUNT_PER_INSTANCE: u32 = 6;
 const INSTANCE_BUFFER_SIZE: u64 = MAX_INSTANCE_COUNT * std::mem::size_of::<InstanceRaw>() as u64;
 
 pub struct QuadInstanceMetadata {
-    pub instance_bind_group: Option<wgpu::BindGroup>,
+    pub instance_bind_group: Option<String>,
 }
 
 pub(crate) struct QuadRenderer {
@@ -33,6 +33,7 @@ pub(crate) struct QuadRenderer {
     instance_buffer: wgpu::Buffer,
     instances_metadata: Vec<QuadInstanceMetadata>,
     instances: Vec<Instance>,
+    texture_bind_groups: HashMap<String, wgpu::BindGroup>,
 }
 
 impl QuadRenderer {
@@ -189,6 +190,7 @@ impl QuadRenderer {
             _texture_bind_group: texture_bind_group,
             texture_bind_group_layout,
             vertex_buffer,
+            texture_bind_groups: HashMap::new(),
             instance_buffer,
             instances_metadata: vec![],
             instances: vec![],
@@ -301,6 +303,7 @@ impl QuadRenderer {
         queue: &Queue,
         quad: &QuadDescription,
         transform_2d: &Transform2D,
+        apply_view_transform: bool,
         textures: &HashMap<String, Texture>,
     ) {
         if self.instances.len() == 0 {
@@ -315,7 +318,10 @@ impl QuadRenderer {
                 Some(texture_description) => texture_description.texture_region.into(),
                 None => Vector4::zero(),
             },
+            apply_view_transform: apply_view_transform as i32,
         };
+
+        println!("{}", self.instances.len());
 
         queue.write_buffer(
             &self.instance_buffer,
@@ -324,24 +330,34 @@ impl QuadRenderer {
         );
 
         let instance_metadata = if let Some(texture_path) = &quad.texture {
-            let texture = textures
-                .get(&texture_path.identifier)
-                .unwrap_or(&self.texture);
+            if !self
+                .texture_bind_groups
+                .contains_key(&texture_path.identifier)
+            {
+                let texture = textures
+                    .get(&texture_path.identifier)
+                    .unwrap_or(&self.texture);
+                self.texture_bind_groups.insert(
+                    texture_path.identifier.clone(),
+                    device.create_bind_group(&wgpu::BindGroupDescriptor {
+                        label: Some("quad_renderer_textured_instance_bind_group"),
+                        layout: &self.texture_bind_group_layout,
+                        entries: &[
+                            wgpu::BindGroupEntry {
+                                binding: 0,
+                                resource: wgpu::BindingResource::TextureView(&texture.view),
+                            },
+                            wgpu::BindGroupEntry {
+                                binding: 1,
+                                resource: wgpu::BindingResource::Sampler(&texture.sampler),
+                            },
+                        ],
+                    }),
+                );
+            }
+
             QuadInstanceMetadata {
-                instance_bind_group: Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
-                    label: Some("quad_renderer_textured_instance_bind_group"),
-                    layout: &self.texture_bind_group_layout,
-                    entries: &[
-                        wgpu::BindGroupEntry {
-                            binding: 0,
-                            resource: wgpu::BindingResource::TextureView(&texture.view),
-                        },
-                        wgpu::BindGroupEntry {
-                            binding: 1,
-                            resource: wgpu::BindingResource::Sampler(&texture.sampler),
-                        },
-                    ],
-                })),
+                instance_bind_group: Some(texture_path.identifier.clone()),
             }
         } else {
             QuadInstanceMetadata {
@@ -359,7 +375,7 @@ impl QuadRenderer {
 
             if let Some(instance_bind_group) = &instance_metadata.instance_bind_group {
                 render_pass.set_pipeline(&self.textured_pipeline);
-                render_pass.set_bind_group(0, &instance_bind_group, &[]);
+                render_pass.set_bind_group(0, &self.texture_bind_groups[instance_bind_group], &[]);
                 render_pass.set_bind_group(1, &self.uniform_bind_group, &[]);
             } else {
                 render_pass.set_pipeline(&self.colored_pipeline);
@@ -393,7 +409,8 @@ impl QuadRenderer {
         let view_matrix: Matrix4<f32> = (*transform).into_matrix4();
         let view_proj = projection_matrix * view_matrix.try_inverse().unwrap();
         let uniform = Uniforms {
-            view_proj: view_proj.into(),
+            proj: projection_matrix.into(),
+            view: view_matrix.try_inverse().unwrap().into(),
         };
         queue.write_buffer(&self.uniform_buffer, 0u64, bytemuck::cast_slice(&[uniform]));
     }
@@ -404,6 +421,7 @@ struct Instance {
     color: Vector3<f32>,
     size: Vector2<f32>,
     texture_rectangle: Vector4<f32>,
+    apply_view_transform: i32,
 }
 
 impl Instance {
@@ -418,6 +436,7 @@ impl Instance {
                 self.texture_rectangle.z,
                 self.texture_rectangle.w,
             ],
+            apply_view_transform: self.apply_view_transform,
         }
     }
 }
@@ -429,6 +448,7 @@ struct InstanceRaw {
     color: [f32; 3],
     size: [f32; 2],
     texture_rectangle: [f32; 4],
+    apply_view_transform: i32,
 }
 
 impl InstanceRaw {
@@ -473,6 +493,11 @@ impl InstanceRaw {
                     offset: mem::size_of::<[f32; 21]>() as wgpu::BufferAddress,
                     shader_location: 9,
                 },
+                wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Int,
+                    offset: mem::size_of::<[f32; 25]>() as wgpu::BufferAddress,
+                    shader_location: 10,
+                },
             ],
         }
     }
@@ -481,13 +506,15 @@ impl InstanceRaw {
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct Uniforms {
-    view_proj: [[f32; 4]; 4],
+    proj: [[f32; 4]; 4],
+    view: [[f32; 4]; 4],
 }
 
 impl Uniforms {
     fn new() -> Self {
         Self {
-            view_proj: Matrix4::new_orthographic(0.0, 800.0, 600.0, 0.0, -100.0, 100.0).into(),
+            view: Matrix4::identity().into(),
+            proj: Matrix4::new_orthographic(0.0, 800.0, 600.0, 0.0, -100.0, 100.0).into(),
         }
     }
 }

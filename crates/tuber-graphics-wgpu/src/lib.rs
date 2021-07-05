@@ -147,6 +147,7 @@ impl LowLevelGraphicsAPI for GraphicsWGPU {
         &mut self,
         quad_description: &QuadDescription,
         transform: &Transform2D,
+        apply_view_transform: bool,
         bounding_box_rendering: bool,
     ) {
         let state = self.wgpu_state.as_mut().expect("Graphics is uninitialized");
@@ -155,6 +156,7 @@ impl LowLevelGraphicsAPI for GraphicsWGPU {
             &state.queue,
             quad_description,
             transform,
+            apply_view_transform,
             &self.textures,
         );
 

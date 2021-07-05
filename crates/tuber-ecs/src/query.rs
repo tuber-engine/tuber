@@ -160,7 +160,7 @@ pub mod accessors {
 
         fn fetch(index: usize, components: &'a Components) -> Option<Self::RefType> {
             Some(Ref::map(
-                components[&TypeId::of::<T>()].component_data[index]
+                components.get(&TypeId::of::<T>())?.component_data[index]
                     .as_ref()?
                     .borrow(),
                 |r| r.downcast_ref().unwrap(),
@@ -190,7 +190,7 @@ pub mod accessors {
 
         fn fetch(index: usize, components: &'a Components) -> Option<Self::RefType> {
             Some(RefMut::map(
-                components[&TypeId::of::<T>()].component_data[index]
+                components.get(&TypeId::of::<T>())?.component_data[index]
                     .as_ref()?
                     .borrow_mut(),
                 |r| r.downcast_mut().unwrap(),
