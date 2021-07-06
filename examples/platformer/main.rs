@@ -6,7 +6,7 @@ use tuber::graphics::shape::RectangleShape;
 use tuber::graphics::Graphics;
 use tuber::graphics_wgpu::GraphicsWGPU;
 use tuber::keyboard::Key;
-use tuber::physics::CollisionShapes;
+use tuber::physics::Collidable;
 use tuber::*;
 use tuber_common::transform::Transform2D;
 use tuber_physics::{CollisionShape, Physics, RigidBody2D, StaticBody2D};
@@ -41,8 +41,9 @@ fn main() -> tuber::Result<()> {
             ..Default::default()
         },
         RigidBody2D::default(),
-        CollisionShapes {
+        Collidable {
             shapes: vec![CollisionShape::from_rectangle(0.0, 0.0, 50.0, 100.0)],
+            ..Default::default()
         },
     ));
 
@@ -57,8 +58,9 @@ fn main() -> tuber::Result<()> {
             ..Default::default()
         },
         StaticBody2D,
-        CollisionShapes {
+        Collidable {
             shapes: vec![CollisionShape::from_rectangle(0.0, 0.0, 800.0, 50.0)],
+            ..Default::default()
         },
     ));
     engine.ecs().insert((
@@ -72,8 +74,9 @@ fn main() -> tuber::Result<()> {
             ..Default::default()
         },
         StaticBody2D,
-        CollisionShapes {
+        Collidable {
             shapes: vec![CollisionShape::from_rectangle(0.0, 0.0, 100.0, 50.0)],
+            ..Default::default()
         },
     ));
 
@@ -89,8 +92,9 @@ fn main() -> tuber::Result<()> {
             ..Default::default()
         },
         StaticBody2D,
-        CollisionShapes {
+        Collidable {
             shapes: vec![CollisionShape::from_rectangle(0.0, 0.0, 300.0, 50.0)],
+            ..Default::default()
         },
     ));
 

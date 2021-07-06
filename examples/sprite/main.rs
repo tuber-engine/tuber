@@ -128,6 +128,7 @@ fn main() -> Result<()> {
                 current_keyframe: 0,
                 start_instant: Instant::now(),
                 frame_duration: 100,
+                flip_x: true,
             },
         },
     ));

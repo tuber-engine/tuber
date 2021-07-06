@@ -70,8 +70,10 @@ fn move_camera_system(ecs: &mut Ecs) {
         transform.translation.0 += 10.0;
     }
     if input_state.is(KeyDown(Key::E)) && input_state.is(KeyUp(Key::D)) {
-        transform.scale += 1.0;
+        transform.scale.0 += 1.0;
+        transform.scale.1 += 1.0;
     } else if input_state.is(KeyDown(Key::A)) && input_state.is(KeyUp(Key::Q)) {
-        transform.scale -= 1.0;
+        transform.scale.0 -= 1.0;
+        transform.scale.1 -= 1.0;
     }
 }

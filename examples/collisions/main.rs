@@ -3,7 +3,7 @@ use tuber::graphics::camera::{Active, OrthographicCamera};
 use tuber::graphics::shape::RectangleShape;
 use tuber::graphics::Graphics;
 use tuber::graphics_wgpu::GraphicsWGPU;
-use tuber::physics::{CollisionShape, CollisionShapes, Physics, RigidBody2D, StaticBody2D};
+use tuber::physics::{Collidable, CollisionShape, Physics, RigidBody2D, StaticBody2D};
 use tuber::Input::MouseButtonDown;
 use tuber::{Engine, InputState, TuberRunner, WinitTuberRunner};
 use tuber_core::ecs::ecs::Ecs;
@@ -42,8 +42,9 @@ fn main() -> tuber::Result<()> {
             ..Default::default()
         },
         StaticBody2D,
-        CollisionShapes {
+        Collidable {
             shapes: vec![CollisionShape::from_rectangle(0.0, 0.0, 100.0, 100.0)],
+            ..Default::default()
         },
     ));
 
@@ -59,8 +60,9 @@ fn main() -> tuber::Result<()> {
             ..Default::default()
         },
         RigidBody2D::default(),
-        CollisionShapes {
+        Collidable {
             shapes: vec![CollisionShape::from_rectangle(0.0, 0.0, 100.0, 100.0)],
+            ..Default::default()
         },
     ));
 
