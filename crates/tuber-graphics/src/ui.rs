@@ -36,9 +36,15 @@ impl Text {
     pub fn text(&self) -> &str {
         &self.text
     }
+    pub fn set_text(&mut self, text: &str) {
+        self.text = text.to_string();
+    }
 
     pub fn font(&self) -> &str {
         &self.font
+    }
+    pub fn set_font(&mut self, font: &str) {
+        self.font = font.to_string();
     }
 }
 
