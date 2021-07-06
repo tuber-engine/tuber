@@ -57,18 +57,16 @@ pub fn physics_update_system(ecs: &mut Ecs) {
     let mut displacements = HashMap::new();
     let mut collided = HashSet::new();
 
-    for (first, (transform, collision_shapes)) in
-        ecs.query::<(R<Transform2D>, R<CollisionShapes>)>()
-    {
-        for (second, (second_transform, second_collision_shapes)) in
-            ecs.query::<(R<Transform2D>, R<CollisionShapes>)>()
+    for (first, (transform, collidable)) in ecs.query::<(R<Transform2D>, R<Collidable>)>() {
+        for (second, (second_transform, second_collidable)) in
+            ecs.query::<(R<Transform2D>, R<Collidable>)>()
         {
-            if first == second {
+            if first == second || (collidable.bit & second_collidable.mask == 0) {
                 continue;
             }
 
-            for collision_shape in &collision_shapes.shapes {
-                for second_collision_shape in &second_collision_shapes.shapes {
+            for collision_shape in &collidable.shapes {
+                for second_collision_shape in &second_collidable.shapes {
                     let transformed_collision_box = collision_shape.transform(&transform);
                     let transformed_second_collision_box =
                         second_collision_shape.transform(&second_transform);
@@ -210,8 +208,20 @@ impl Polygon {
 }
 
 #[derive(Debug)]
-pub struct CollisionShapes {
+pub struct Collidable {
     pub shapes: Vec<CollisionShape>,
+    pub bit: u8,
+    pub mask: u8,
+}
+
+impl Default for Collidable {
+    fn default() -> Self {
+        Self {
+            shapes: vec![],
+            bit: 0,
+            mask: 0,
+        }
+    }
 }
 
 #[derive(Debug)]
