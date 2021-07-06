@@ -41,6 +41,11 @@ impl ComponentStore {
         self.entities_bitset.unset_bit(entity_index);
         self.component_data[entity_index] = None;
     }
+
+    pub fn add_to_entity<C: 'static>(&mut self, component: C, entity_index: EntityIndex) {
+        self.entities_bitset.set_bit(entity_index);
+        self.component_data[entity_index] = Some(RefCell::new(Box::new(component)));
+    }
 }
 
 /// The Ecs itself, stores entities and runs systems
@@ -107,6 +112,12 @@ impl Ecs {
     pub fn remove_component<C: 'static>(&mut self, entity_index: EntityIndex) {
         if let Some(components) = self.components.get_mut(&TypeId::of::<C>()) {
             components.remove_from_entity(entity_index);
+        }
+    }
+
+    pub fn add_component<C: 'static>(&mut self, component: C, entity_index: EntityIndex) {
+        if let Some(components) = self.components.get_mut(&TypeId::of::<C>()) {
+            components.add_to_entity(component, entity_index);
         }
     }
 
