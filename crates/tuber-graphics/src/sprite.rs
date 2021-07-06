@@ -21,6 +21,7 @@ pub struct AnimationState {
     pub current_keyframe: usize,
     pub start_instant: Instant,
     pub frame_duration: u32,
+    pub flip_x: bool,
 }
 
 pub fn sprite_animation_step_system(ecs: &mut Ecs) {

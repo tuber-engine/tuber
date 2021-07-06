@@ -321,8 +321,6 @@ impl QuadRenderer {
             apply_view_transform: apply_view_transform as i32,
         };
 
-        println!("{}", self.instances.len());
-
         queue.write_buffer(
             &self.instance_buffer,
             self.instances.len() as u64 * std::mem::size_of::<InstanceRaw>() as u64,
@@ -407,7 +405,6 @@ impl QuadRenderer {
             camera.far,
         );
         let view_matrix: Matrix4<f32> = (*transform).into_matrix4();
-        let view_proj = projection_matrix * view_matrix.try_inverse().unwrap();
         let uniform = Uniforms {
             proj: projection_matrix.into(),
             view: view_matrix.try_inverse().unwrap().into(),

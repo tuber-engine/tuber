@@ -135,6 +135,15 @@ impl TextureRegion {
             height: self.height / texture_height,
         }
     }
+
+    pub fn flip_x(self) -> Self {
+        Self {
+            x: self.x + self.width,
+            y: self.y,
+            width: -self.width,
+            height: self.height,
+        }
+    }
 }
 
 impl From<TextureRegion> for Vector4<f32> {

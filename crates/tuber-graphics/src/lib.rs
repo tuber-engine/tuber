@@ -149,6 +149,19 @@ impl Graphics {
 
         let current_keyframe = animated_sprite.animation_state.keyframes
             [animated_sprite.animation_state.current_keyframe];
+
+        let mut normalized_texture_region = TextureRegion::new(
+            current_keyframe.x,
+            current_keyframe.y,
+            current_keyframe.width,
+            current_keyframe.height,
+        )
+        .normalize(texture_width, texture_height);
+
+        if animated_sprite.animation_state.flip_x {
+            normalized_texture_region = normalized_texture_region.flip_x();
+        }
+
         self.graphics_impl.prepare_quad(
             &QuadDescription {
                 width: animated_sprite.width,
@@ -156,13 +169,7 @@ impl Graphics {
                 color: (1.0, 1.0, 1.0),
                 texture: Some(TextureDescription {
                     identifier: texture,
-                    texture_region: TextureRegion::new(
-                        current_keyframe.x,
-                        current_keyframe.y,
-                        current_keyframe.width,
-                        current_keyframe.height,
-                    )
-                    .normalize(texture_width, texture_height),
+                    texture_region: normalized_texture_region,
                 }),
             },
             transform,
