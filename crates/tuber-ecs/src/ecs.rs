@@ -101,10 +101,14 @@ impl Ecs {
 
     pub fn delete_by_query<Q: for<'a> Query<'a>>(&mut self) {
         let to_delete = Q::matching_ids(self.entity_count(), &mut self.components);
+        self.delete_by_ids(to_delete.iter().collect::<Vec<_>>().as_slice());
+    }
+
+    pub fn delete_by_ids(&mut self, to_delete: &[&usize]) {
         for entity_index in to_delete {
             for component in self.components.values_mut() {
-                component.entities_bitset.unset_bit(entity_index);
-                component.component_data[entity_index] = None;
+                component.entities_bitset.unset_bit(**entity_index);
+                component.component_data[**entity_index] = None;
             }
         }
     }
