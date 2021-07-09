@@ -54,7 +54,7 @@ impl GraphicsWGPU {
 
 impl LowLevelGraphicsAPI for GraphicsWGPU {
     fn initialize(&mut self, window: Window, window_size: WindowSize) {
-        let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
+        let instance = wgpu::Instance::new(wgpu::BackendBit::all());
         let surface = unsafe { instance.create_surface(&window) };
         let adapter = async {
             instance
